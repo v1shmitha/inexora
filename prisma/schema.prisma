@@ -1,0 +1,721 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public"]
+}
+
+// ============================================
+// PROFILES
+// ============================================
+model Profile {
+  id          String    @id
+  email       String    @unique
+  fullName    String?
+  avatarUrl   String?
+  phone       String?
+  nicNumber   String?   @unique
+  dateOfBirth DateTime?
+  gender      Gender?
+  nationality String?   @default("Sri Lankan")
+  address     String?
+  city        String?
+  district    String?
+  role        Role      @default(STUDENT)
+  isVerified  Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  student       Student?
+  lecturer      Lecturer?
+  employer      Employer?
+  payments      Payment[]
+  subscriptions Subscription[]
+  notifications Notification[]
+  institutions  Institution[]  @relation("InstitutionAdmin")
+  announcements Announcement[]
+
+  @@schema("public")
+}
+
+enum Role {
+  STUDENT
+  LECTURER
+  INSTITUTION_ADMIN
+  EMPLOYER
+  ADMIN
+
+  @@schema("public")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+
+  @@schema("public")
+}
+
+// ============================================
+// INSTITUTIONS
+// ============================================
+model Institution {
+  id                  String          @id @default(cuid())
+  name                String
+  slug                String          @unique
+  type                InstitutionType
+  description         String?
+  logoUrl             String?
+  website             String?
+  email               String?
+  phone               String?
+  address             String?
+  country             String          @default("Sri Lanka")
+  accreditationBody   String?
+  accreditationNumber String?
+  isVerified          Boolean         @default(false)
+  isActive            Boolean         @default(true)
+  adminId             String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  admin         Profile?       @relation("InstitutionAdmin", fields: [adminId], references: [id])
+  programs      Program[]
+  lecturers     Lecturer[]
+  announcements Announcement[]
+
+  @@schema("public")
+}
+
+enum InstitutionType {
+  PUBLIC_UNIVERSITY
+  PRIVATE_UNIVERSITY
+  FOREIGN_UNIVERSITY
+  TRAINING_INSTITUTE
+  PROFESSIONAL_BODY
+  CORPORATE_ACADEMY
+
+  @@schema("public")
+}
+
+// ============================================
+// PROGRAMS
+// ============================================
+model Program {
+  id                   String       @id @default(cuid())
+  institutionId        String
+  title                String
+  slug                 String
+  type                 ProgramType
+  level                ProgramLevel
+  field                ProgramField
+  durationMonths       Int?
+  deliveryMode         DeliveryMode
+  language             String[]
+  description          String?
+  entryRequirements    String?
+  careerOutcomes       String?
+  creditPoints         Int?
+  creditFramework      String?
+  localPrice           Decimal?     @db.Decimal(10, 2)
+  foreignPrice         Decimal?     @db.Decimal(10, 2)
+  scholarshipAvailable Boolean      @default(false)
+  isPublished          Boolean      @default(false)
+  isActive             Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  institution   Institution    @relation(fields: [institutionId], references: [id])
+  courses       Course[]
+  enrollments   Enrollment[]
+  credentials   Credential[]
+  announcements Announcement[]
+
+  @@schema("public")
+}
+
+enum ProgramType {
+  FOUNDATION
+  DIPLOMA
+  CERTIFICATE
+  BACHELOR
+  MASTER
+  PHD
+  PROFESSIONAL
+  MICROCREDENTIAL
+  SHORT_COURSE
+
+  @@schema("public")
+}
+
+enum ProgramLevel {
+  ENTRY
+  UNDERGRADUATE
+  POSTGRADUATE
+  RESEARCH
+
+  @@schema("public")
+}
+
+enum ProgramField {
+  BUSINESS_MANAGEMENT
+  IT_AI_DATA
+  EDUCATION_PSYCHOLOGY
+  LOGISTICS_TOURISM_HEALTHCARE
+  ENGINEERING
+  LAW
+  ARTS
+  OTHER
+
+  @@schema("public")
+}
+
+enum DeliveryMode {
+  ONLINE
+  ON_CAMPUS
+  HYBRID
+  BLENDED
+
+  @@schema("public")
+}
+
+// ============================================
+// COURSES
+// ============================================
+model Course {
+  id          String   @id @default(cuid())
+  programId   String
+  title       String
+  code        String?
+  description String?
+  creditHours Int?
+  semester    Int?
+  year        Int?
+  isMandatory Boolean  @default(true)
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  program           Program            @relation(fields: [programId], references: [id])
+  courseLecturers   CourseLecturer[]
+  courseEnrollments CourseEnrollment[]
+  assessments       Assessment[]
+
+  @@schema("public")
+}
+
+// ============================================
+// LECTURERS
+// ============================================
+model Lecturer {
+  id              String   @id @default(cuid())
+  profileId       String   @unique
+  institutionId   String?
+  title           String?
+  specialization  String[]
+  qualifications  String?
+  experienceYears Int?
+  bio             String?
+  linkedinUrl     String?
+  isVisiting      Boolean  @default(false)
+  hourlyRate      Decimal? @db.Decimal(10, 2)
+  isAvailable     Boolean  @default(true)
+  rating          Decimal  @default(0) @db.Decimal(3, 2)
+  totalReviews    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profile         Profile          @relation(fields: [profileId], references: [id])
+  institution     Institution?     @relation(fields: [institutionId], references: [id])
+  courseLecturers CourseLecturer[]
+
+  @@schema("public")
+}
+
+model CourseLecturer {
+  id         String       @id @default(cuid())
+  courseId   String
+  lecturerId String
+  role       LecturerRole @default(LECTURER)
+  assignedAt DateTime     @default(now())
+
+  course   Course   @relation(fields: [courseId], references: [id])
+  lecturer Lecturer @relation(fields: [lecturerId], references: [id])
+
+  @@schema("public")
+}
+
+enum LecturerRole {
+  LECTURER
+  CO_LECTURER
+  SUPERVISOR
+
+  @@schema("public")
+}
+
+// ============================================
+// STUDENTS
+// ============================================
+model Student {
+  id                String            @id @default(cuid())
+  profileId         String            @unique
+  studentNumber     String?           @unique
+  olResults         Json?
+  alResults         Json?
+  previousEducation String?
+  employmentStatus  EmploymentStatus?
+  targetCareer      String?
+  emergencyContact  Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  profile         Profile                @relation(fields: [profileId], references: [id])
+  enrollments     Enrollment[]
+  jobApplications JobApplication[]
+  credentials     Credential[]
+  submissions     AssessmentSubmission[]
+
+  @@schema("public")
+}
+
+enum EmploymentStatus {
+  STUDENT
+  EMPLOYED
+  SELF_EMPLOYED
+  UNEMPLOYED
+
+  @@schema("public")
+}
+
+// ============================================
+// ENROLLMENTS
+// ============================================
+model Enrollment {
+  id                 String           @id @default(cuid())
+  studentId          String
+  programId          String
+  status             EnrollmentStatus @default(PENDING)
+  enrollmentDate     DateTime?
+  expectedCompletion DateTime?
+  actualCompletion   DateTime?
+  currentYear        Int              @default(1)
+  currentSemester    Int              @default(1)
+  scholarshipType    String?
+  scholarshipAmount  Decimal?         @db.Decimal(10, 2)
+  notes              String?
+  approvedBy         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  student           Student            @relation(fields: [studentId], references: [id])
+  program           Program            @relation(fields: [programId], references: [id])
+  courseEnrollments CourseEnrollment[]
+  payments          Payment[]
+  credentials       Credential[]
+
+  @@schema("public")
+}
+
+enum EnrollmentStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  COMPLETED
+  SUSPENDED
+  WITHDRAWN
+
+  @@schema("public")
+}
+
+model CourseEnrollment {
+  id           String                 @id @default(cuid())
+  enrollmentId String
+  courseId     String
+  status       CourseEnrollmentStatus @default(ACTIVE)
+  grade        String?
+  gradePoints  Decimal?               @db.Decimal(3, 2)
+  completedAt  DateTime?
+  createdAt    DateTime               @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+
+  @@schema("public")
+}
+
+enum CourseEnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  WITHDRAWN
+
+  @@schema("public")
+}
+
+// ============================================
+// ASSESSMENTS
+// ============================================
+model Assessment {
+  id            String         @id @default(cuid())
+  courseId      String
+  title         String
+  type          AssessmentType
+  totalMarks    Int?
+  passMarks     Int?
+  weightPercent Decimal?       @db.Decimal(5, 2)
+  dueDate       DateTime?
+  instructions  String?
+  createdAt     DateTime       @default(now())
+
+  course      Course                 @relation(fields: [courseId], references: [id])
+  submissions AssessmentSubmission[]
+
+  @@schema("public")
+}
+
+enum AssessmentType {
+  ASSIGNMENT
+  QUIZ
+  EXAM
+  PROJECT
+  PRESENTATION
+
+  @@schema("public")
+}
+
+model AssessmentSubmission {
+  id             String           @id @default(cuid())
+  assessmentId   String
+  studentId      String
+  fileUrl        String?
+  submissionText String?
+  submittedAt    DateTime         @default(now())
+  marksObtained  Decimal?         @db.Decimal(6, 2)
+  feedback       String?
+  gradedBy       String?
+  gradedAt       DateTime?
+  status         SubmissionStatus @default(SUBMITTED)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id])
+  student    Student    @relation(fields: [studentId], references: [id])
+
+  @@schema("public")
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  RESUBMIT_REQUIRED
+
+  @@schema("public")
+}
+
+// ============================================
+// LIBRARY
+// ============================================
+model LibraryResource {
+  id            String       @id @default(cuid())
+  title         String
+  type          ResourceType
+  subject       String?
+  field         String?
+  author        String?
+  publisher     String?
+  yearPublished Int?
+  description   String?
+  fileUrl       String?
+  thumbnailUrl  String?
+  isFree        Boolean      @default(false)
+  accessLevel   AccessLevel  @default(ENROLLED)
+  downloads     Int          @default(0)
+  views         Int          @default(0)
+  uploadedBy    String?
+  createdAt     DateTime     @default(now())
+
+  @@schema("public")
+}
+
+enum ResourceType {
+  EBOOK
+  JOURNAL
+  VIDEO_LECTURE
+  RESEARCH_PAPER
+  SIMULATION
+  PAST_PAPER
+
+  @@schema("public")
+}
+
+enum AccessLevel {
+  PUBLIC
+  ENROLLED
+  PREMIUM
+
+  @@schema("public")
+}
+
+// ============================================
+// CREDENTIALS
+// ============================================
+model Credential {
+  id               String         @id @default(cuid())
+  studentId        String
+  enrollmentId     String?
+  programId        String?
+  credentialType   CredentialType
+  title            String
+  issuedBy         String?
+  issueDate        DateTime?
+  certificateUrl   String?
+  verificationCode String         @unique @default(cuid())
+  isValid          Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+
+  student    Student     @relation(fields: [studentId], references: [id])
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id])
+  program    Program?    @relation(fields: [programId], references: [id])
+
+  @@schema("public")
+}
+
+enum CredentialType {
+  CERTIFICATE
+  DIPLOMA
+  DEGREE
+  MICROCREDENTIAL
+
+  @@schema("public")
+}
+
+// ============================================
+// EMPLOYERS & JOBS
+// ============================================
+model Employer {
+  id          String   @id @default(cuid())
+  profileId   String   @unique
+  companyName String
+  industry    String?
+  companySize String?
+  website     String?
+  logoUrl     String?
+  description String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  profile     Profile      @relation(fields: [profileId], references: [id])
+  jobListings JobListing[]
+
+  @@schema("public")
+}
+
+model JobListing {
+  id                     String    @id @default(cuid())
+  employerId             String
+  title                  String
+  type                   JobType
+  location               String?
+  isRemote               Boolean   @default(false)
+  salaryMin              Decimal?  @db.Decimal(12, 2)
+  salaryMax              Decimal?  @db.Decimal(12, 2)
+  currency               String    @default("LKR")
+  description            String?
+  requirements           String?
+  requiredQualifications String[]
+  preferredFields        String[]
+  applicationDeadline    DateTime?
+  isActive               Boolean   @default(true)
+  views                  Int       @default(0)
+  createdAt              DateTime  @default(now())
+  expiresAt              DateTime?
+
+  employer        Employer         @relation(fields: [employerId], references: [id])
+  jobApplications JobApplication[]
+
+  @@schema("public")
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  CONTRACT
+  OVERSEAS
+
+  @@schema("public")
+}
+
+model JobApplication {
+  id          String            @id @default(cuid())
+  jobId       String
+  studentId   String
+  coverLetter String?
+  cvUrl       String?
+  status      ApplicationStatus @default(APPLIED)
+  appliedAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  job     JobListing @relation(fields: [jobId], references: [id])
+  student Student    @relation(fields: [studentId], references: [id])
+
+  @@schema("public")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW
+  OFFERED
+  REJECTED
+  WITHDRAWN
+
+  @@schema("public")
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+model Payment {
+  id              String        @id @default(cuid())
+  profileId       String
+  enrollmentId    String?
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("LKR")
+  paymentType     PaymentType
+  paymentMethod   PaymentMethod
+  stripePaymentId String?
+  stripeSessionId String?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  profile    Profile     @relation(fields: [profileId], references: [id])
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id])
+
+  @@schema("public")
+}
+
+enum PaymentType {
+  TUITION
+  SUBSCRIPTION
+  CERTIFICATION
+  LIBRARY
+  APPLICATION_FEE
+
+  @@schema("public")
+}
+
+enum PaymentMethod {
+  STRIPE
+  PAYHERE
+  BANK_TRANSFER
+  SCHOLARSHIP
+
+  @@schema("public")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+
+  @@schema("public")
+}
+
+// ============================================
+// SUBSCRIPTIONS
+// ============================================
+model Subscription {
+  id                   String             @id @default(cuid())
+  profileId            String
+  plan                 SubscriptionPlan
+  status               SubscriptionStatus @default(ACTIVE)
+  startsAt             DateTime           @default(now())
+  expiresAt            DateTime?
+  stripeSubscriptionId String?
+  amount               Decimal?           @db.Decimal(10, 2)
+  currency             String             @default("LKR")
+  createdAt            DateTime           @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@schema("public")
+}
+
+enum SubscriptionPlan {
+  FREE
+  STUDENT_LOCAL
+  STUDENT_FOREIGN
+  INSTITUTION
+  CORPORATE
+
+  @@schema("public")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+
+  @@schema("public")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+model Notification {
+  id        String           @id @default(cuid())
+  profileId String
+  title     String
+  message   String?
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@schema("public")
+}
+
+enum NotificationType {
+  ENROLLMENT
+  PAYMENT
+  ASSIGNMENT
+  GRADE
+  JOB
+  SYSTEM
+  ANNOUNCEMENT
+
+  @@schema("public")
+}
+
+// ============================================
+// ANNOUNCEMENTS
+// ============================================
+model Announcement {
+  id             String    @id @default(cuid())
+  title          String
+  content        String?
+  targetAudience String[]  @default(["all"])
+  institutionId  String?
+  programId      String?
+  isPublished    Boolean   @default(false)
+  publishedBy    String?
+  publishedAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  institution Institution? @relation(fields: [institutionId], references: [id])
+  program     Program?     @relation(fields: [programId], references: [id])
+  publisher   Profile?     @relation(fields: [publishedBy], references: [id])
+
+  @@schema("public")
+}
