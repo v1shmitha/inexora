@@ -24,13 +24,8 @@ export default function Footer() {
             <h3 className="mb-4 font-semibold text-white">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/about" className="transition hover:text-white">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/programs" className="transition hover:text-white">
-                  Programs
+                <Link href="/careers" className="transition hover:text-white">
+                  Careers
                 </Link>
               </li>
               <li>
@@ -39,10 +34,15 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/careers" className="transition hover:text-white">
-                  Careers
+                <Link href="/about" className="transition hover:text-white">
+                  About Us
                 </Link>
               </li>
+              <li>
+                <Link href="/contact" className="transition hover:text-white">
+                  Contact Us
+                </Link>
+              </li>             
             </ul>
           </div>
 
