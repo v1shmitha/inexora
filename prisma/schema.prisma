@@ -42,6 +42,8 @@ model Profile {
   announcements Announcement[]
 
   @@schema("public")
+  
+  is_admin   Boolean  @default(false)
 }
 
 enum Role {

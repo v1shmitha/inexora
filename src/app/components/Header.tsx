@@ -9,40 +9,56 @@ import {
   ChevronDown,
   AlertCircle,
   Settings,
+  Shield,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "~/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
+interface Profile {
+  is_admin: boolean;
+  fullName: string | null;
+}
+
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  // Get current user on mount
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("Profile")
+      .select("is_admin, fullName")
+      .eq("id", userId)
+      .single();
+    setProfile(data);
+  };
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      if (user) void fetchProfile(user.id);
     };
     void getUser();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) void fetchProfile(session.user.id);
+      else setProfile(null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -78,6 +94,7 @@ export default function Header() {
     try {
       await supabase.auth.signOut();
       setShowSignOutConfirm(false);
+      setProfile(null);
       router.push("/");
       router.refresh();
     } catch (error) {
@@ -89,6 +106,9 @@ export default function Header() {
     router.push("/settings");
     setIsProfileOpen(false);
   };
+
+  const displayName = profile?.fullName?.split(" ")[0] ?? user?.email?.split("@")[0];
+  const avatarLetter = profile?.fullName?.charAt(0).toUpperCase() ?? user?.email?.charAt(0).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 bg-white font-sans shadow-sm">
@@ -129,10 +149,10 @@ export default function Header() {
                   className="flex items-center space-x-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 transition-all hover:bg-gray-100"
                 >
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                    {user.email?.charAt(0).toUpperCase()}
+                    {avatarLetter}
                   </div>
                   <span className="text-sm font-medium text-gray-700">
-                    {user.email?.split("@")[0]}
+                    {displayName}
                   </span>
                   <ChevronDown
                     className={`h-4 w-4 text-gray-500 transition-transform ${
@@ -151,6 +171,18 @@ export default function Header() {
                         {user.email}
                       </p>
                     </div>
+
+                    {/* Admin only */}
+                    {profile?.is_admin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex w-full items-center space-x-3 px-4 py-2 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-600"
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </Link>
+                    )}
 
                     <button
                       onClick={handleSettingsClick}
@@ -220,7 +252,38 @@ export default function Header() {
                 {item.name}
               </Link>
             ))}
-            {!user && (
+            {user ? (
+              <div className="mt-4 space-y-2 border-t border-gray-100 px-4 pt-4">
+                {profile?.is_admin && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-sm font-medium text-gray-700"
+                  >
+                    <Shield className="h-4 w-4" />
+                    Admin Panel
+                  </Link>
+                )}
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 py-2 text-sm font-medium text-gray-700"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setShowSignOutConfirm(true);
+                  }}
+                  className="flex items-center gap-2 py-2 text-sm font-medium text-red-600"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </button>
+              </div>
+            ) : (
               <div className="mt-4 flex flex-col gap-2 px-4">
                 <Link
                   href="/login"
@@ -250,11 +313,9 @@ export default function Header() {
               <AlertCircle className="h-6 w-6" />
               <h3 className="text-lg font-bold text-gray-900">Sign Out?</h3>
             </div>
-
             <p className="mb-6 text-gray-600">
               Are you sure you want to sign out?
             </p>
-
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowSignOutConfirm(false)}

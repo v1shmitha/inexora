@@ -25,11 +25,19 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh session
+  // Refreshes session on every request — critical for auth to work
+  await supabase.auth.getUser();
+
+  // Protect dashboard and admin routes
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Protect routes
   if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  if (!user && request.nextUrl.pathname.startsWith("/admin")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

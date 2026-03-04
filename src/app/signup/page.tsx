@@ -6,13 +6,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "~/lib/supabase/client";
 
-type UserRole = "student" | "provider" | "lecturer" | "employer";
+type UserRole = "STUDENT" | "INSTITUTION_ADMIN" | "LECTURER" | "EMPLOYER";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<UserRole>("student");
+  const [role, setRole] = useState<UserRole>("STUDENT");
   const [otp, setOtp] = useState("");
   const [otpStep, setOtpStep] = useState(false);
   const [error, setError] = useState("");
@@ -22,20 +22,19 @@ export default function Signup() {
   const supabase = createClient();
 
   const roles: { value: UserRole; label: string; description: string }[] = [
-    { value: "student", label: "Student", description: "Access programs and pathways" },
-    { value: "provider", label: "Education Provider", description: "Offer programs and manage students" },
-    { value: "lecturer", label: "Lecturer", description: "Create and share educational content" },
-    { value: "employer", label: "Employer", description: "Post jobs and find talent" },
+    { value: "STUDENT", label: "Student", description: "Access programs and pathways" },
+    { value: "INSTITUTION_ADMIN", label: "Education Provider", description: "Offer programs and manage students" },
+    { value: "LECTURER", label: "Lecturer", description: "Create and share educational content" },
+    { value: "EMPLOYER", label: "Employer", description: "Post jobs and find talent" },
   ];
 
-  // ── Signup ─────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -47,7 +46,15 @@ export default function Signup() {
       });
 
       if (error) throw error;
-      setOtpStep(true);
+
+      // Email confirmation disabled → session returned immediately
+      if (data.session) {
+        router.push("/profile-setup");
+        router.refresh();
+      } else {
+        // Email confirmation enabled → show OTP step
+        setOtpStep(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -55,7 +62,6 @@ export default function Signup() {
     }
   };
 
-  // ── OTP Verify ─────────────────────────────────────────────────────────
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -70,7 +76,7 @@ export default function Signup() {
 
       if (error) throw error;
 
-      router.push("/dashboard");
+      router.push("/profile-setup");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "OTP verification failed");
@@ -86,7 +92,7 @@ export default function Signup() {
         {/* Back Button */}
         <button
           type="button"
-          onClick={() => router.push("/login")}
+          onClick={() => router.push("/")}
           className="absolute left-4 top-4 flex items-center gap-2 text-sm text-gray-500 transition hover:text-gray-700"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -104,7 +110,7 @@ export default function Signup() {
           </p>
         </div>
 
-        {/* ── Signup Form ── */}
+        {/* Signup Form */}
         {!otpStep ? (
           <form onSubmit={handleSubmit} className="space-y-6">
             <input
@@ -181,7 +187,7 @@ export default function Signup() {
             </button>
           </form>
         ) : (
-          /* ── OTP Form ── */
+          /* OTP Form */
           <form onSubmit={handleVerifyOtp} className="space-y-6">
             <p className="text-center text-sm text-gray-600">
               We sent a code to <span className="font-semibold">{email}</span>
@@ -224,10 +230,7 @@ export default function Signup() {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Already have an account?{" "}
-            <Link
-              href="/login"
-              className="font-semibold text-blue-600 hover:underline"
-            >
+            <Link href="/login" className="font-semibold text-blue-600 hover:underline">
               Sign in
             </Link>
           </p>
