@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Video, FileText, Users, TrendingUp, Loader2, BookOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "~/lib/supabase/client";
+import SetupIncompleteBanner from "./SetupIncompleteBanner";
 
 interface CourseLecturer {
   id: string;
@@ -31,6 +32,7 @@ export default function LecturerDashboard() {
   const supabase = createClient();
 
   const [fullName, setFullName] = useState<string | null>(null);
+  const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
   const [lecturerId, setLecturerId] = useState<string | null>(null);
   const [courseLecturers, setCourseLecturers] = useState<CourseLecturer[]>([]);
   const [resources, setResources] = useState<LibraryResource[]>([]);
@@ -49,12 +51,13 @@ export default function LecturerDashboard() {
 
       setFullName(profile?.fullName ?? null);
 
-      // Get lecturer record
       const { data: lecturer } = await supabase
         .from("Lecturer")
         .select("id")
         .eq("profileId", user.id)
         .single();
+
+      setSetupComplete(!!lecturer);
 
       if (lecturer) {
         setLecturerId(lecturer.id);
@@ -72,13 +75,11 @@ export default function LecturerDashboard() {
       setLoading(true);
 
       const [coursesRes, resourcesRes] = await Promise.all([
-        // Get courses this lecturer is assigned to
         supabase
           .from("CourseLecturer")
           .select("id, role, course:Course(id, title, code, program:Program(title))")
           .eq("lecturerId", lId),
 
-        // Get library resources uploaded by this user
         supabase
           .from("LibraryResource")
           .select("id, title, type, views, downloads, isFree, createdAt")
@@ -108,7 +109,7 @@ export default function LecturerDashboard() {
     PAST_PAPER: "bg-gray-100 text-gray-700",
   };
 
-  if (loading) {
+  if (loading || setupComplete === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -122,6 +123,9 @@ export default function LecturerDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+        {/* Setup incomplete banner */}
+        {!setupComplete && <SetupIncompleteBanner role="LECTURER" />}
 
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -183,11 +187,9 @@ export default function LecturerDashboard() {
                           {course?.code && <span className="font-mono text-xs">{course.code}</span>}
                           {program?.title && <span className="text-gray-500">{program.title}</span>}
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            cl.role === "LECTURER"
-                              ? "bg-blue-100 text-blue-700"
-                              : cl.role === "CO_LECTURER"
-                              ? "bg-purple-100 text-purple-700"
-                              : "bg-orange-100 text-orange-700"
+                            cl.role === "LECTURER" ? "bg-blue-100 text-blue-700"
+                            : cl.role === "CO_LECTURER" ? "bg-purple-100 text-purple-700"
+                            : "bg-orange-100 text-orange-700"
                           }`}>
                             {cl.role.replace("_", " ")}
                           </span>
@@ -223,19 +225,15 @@ export default function LecturerDashboard() {
                     <div key={resource.id} className="rounded-lg border border-gray-200 p-4">
                       <h3 className="mb-2 font-semibold text-gray-900">{resource.title}</h3>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            resourceTypeColors[resource.type] ?? "bg-gray-100 text-gray-700"
-                          }`}
-                        >
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          resourceTypeColors[resource.type] ?? "bg-gray-100 text-gray-700"
+                        }`}>
                           {resource.type.replace("_", " ")}
                         </span>
                         <span>{resource.views} views</span>
                         <span>{resource.downloads} downloads</span>
                         <span className={`rounded-full px-2 py-0.5 text-xs ${
-                          resource.isFree
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-700"
+                          resource.isFree ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                         }`}>
                           {resource.isFree ? "Free" : "Premium"}
                         </span>

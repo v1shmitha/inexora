@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Briefcase, Users, TrendingUp, FileText, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "~/lib/supabase/client";
+import SetupIncompleteBanner from "./SetupIncompleteBanner";
 
 interface JobListing {
   id: string;
@@ -27,6 +28,7 @@ export default function EmployerDashboard() {
   const supabase = createClient();
 
   const [fullName, setFullName] = useState<string | null>(null);
+  const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
   const [employerId, setEmployerId] = useState<string | null>(null);
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
@@ -45,12 +47,13 @@ export default function EmployerDashboard() {
 
       setFullName(profile?.fullName ?? null);
 
-      // Get employer record
       const { data: employer } = await supabase
         .from("Employer")
         .select("id")
         .eq("profileId", user.id)
         .single();
+
+      setSetupComplete(!!employer);
 
       if (employer) {
         setEmployerId(employer.id);
@@ -111,7 +114,7 @@ export default function EmployerDashboard() {
     OVERSEAS: "bg-green-100 text-green-700",
   };
 
-  if (loading) {
+  if (loading || setupComplete === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -125,6 +128,9 @@ export default function EmployerDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+        {/* Setup incomplete banner */}
+        {!setupComplete && <SetupIncompleteBanner role="EMPLOYER" />}
 
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -191,9 +197,7 @@ export default function EmployerDashboard() {
                           </p>
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                              job.isActive
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-700"
+                              job.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                             }`}>
                               {job.isActive ? "Active" : "Inactive"}
                             </span>

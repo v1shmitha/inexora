@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { BookOpen, Users, TrendingUp, DollarSign, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "~/lib/supabase/client";
+import SetupIncompleteBanner from "./SetupIncompleteBanner";
 
 interface Program {
   id: string;
@@ -25,6 +26,7 @@ export default function ProviderDashboard() {
   const supabase = createClient();
 
   const [fullName, setFullName] = useState<string | null>(null);
+  const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
   const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -43,12 +45,13 @@ export default function ProviderDashboard() {
 
       setFullName(profile?.fullName ?? null);
 
-      // Find institution where this user is the admin
       const { data: institution } = await supabase
         .from("Institution")
         .select("id")
         .eq("adminId", user.id)
         .maybeSingle();
+
+      setSetupComplete(!!institution);
 
       if (institution) {
         setInstitutionId(institution.id);
@@ -100,7 +103,7 @@ export default function ProviderDashboard() {
     WITHDRAWN: "bg-gray-100 text-gray-800",
   };
 
-  if (loading) {
+  if (loading || setupComplete === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -115,17 +118,16 @@ export default function ProviderDashboard() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
+        {/* Setup incomplete banner */}
+        {!setupComplete && <SetupIncompleteBanner role="INSTITUTION_ADMIN" />}
+
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="mb-2 text-3xl font-bold text-gray-900">
-              Provider Dashboard
-            </h1>
+            <h1 className="mb-2 text-3xl font-bold text-gray-900">Provider Dashboard</h1>
             <p className="text-gray-600">
               Welcome back,{" "}
-              <span className="font-semibold text-blue-600">
-                {fullName ?? "Provider"}
-              </span>
+              <span className="font-semibold text-blue-600">{fullName ?? "Provider"}</span>
             </p>
           </div>
           <button
@@ -171,26 +173,17 @@ export default function ProviderDashboard() {
               ) : (
                 <div className="space-y-4">
                   {programs.slice(0, 5).map((program) => (
-                    <div
-                      key={program.id}
-                      className="rounded-lg border border-gray-200 p-4"
-                    >
+                    <div key={program.id} className="rounded-lg border border-gray-200 p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="mb-1 font-semibold text-gray-900">
-                            {program.title}
-                          </h3>
+                          <h3 className="mb-1 font-semibold text-gray-900">{program.title}</h3>
                           <p className="mb-2 text-sm text-gray-600">
                             {program.durationMonths} months
                             {program.creditPoints && ` · ${program.creditPoints} credits`}
                           </p>
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs ${
-                              program.isPublished
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                          >
+                          <span className={`rounded-full px-2 py-1 text-xs ${
+                            program.isPublished ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                          }`}>
                             {program.isPublished ? "Published" : "Draft"}
                           </span>
                         </div>
@@ -216,14 +209,9 @@ export default function ProviderDashboard() {
               ) : (
                 <div className="space-y-4">
                   {enrollments.slice(0, 5).map((enrollment) => {
-                    const program = Array.isArray(enrollment.program)
-                      ? enrollment.program[0]
-                      : null;
+                    const program = Array.isArray(enrollment.program) ? enrollment.program[0] : null;
                     return (
-                      <div
-                        key={enrollment.id}
-                        className="rounded-lg border border-gray-200 p-4"
-                      >
+                      <div key={enrollment.id} className="rounded-lg border border-gray-200 p-4">
                         <div className="mb-2 flex items-start justify-between">
                           <div className="flex-1">
                             <h3 className="mb-1 font-semibold text-gray-900">
@@ -233,12 +221,9 @@ export default function ProviderDashboard() {
                               {new Date(enrollment.createdAt).toLocaleDateString()}
                             </p>
                           </div>
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ${
-                              enrollmentStatusColors[enrollment.status] ??
-                              "bg-gray-100 text-gray-800"
-                            }`}
-                          >
+                          <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            enrollmentStatusColors[enrollment.status] ?? "bg-gray-100 text-gray-800"
+                          }`}>
                             {enrollment.status}
                           </span>
                         </div>
