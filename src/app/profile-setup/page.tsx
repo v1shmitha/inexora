@@ -3,7 +3,6 @@ import { createClient } from "~/lib/supabase/server";
 import { createAdminClient } from "~/lib/supabase/admin";
 import StudentProfileSetup from "./_components/StudentProfileSetup";
 import LecturerProfileSetup from "./_components/LecturerProfileSetup";
-import ProviderProfileSetup from "./_components/ProviderProfileSetup";
 import EmployerProfileSetup from "./_components/EmployerProfileSetup";
 
 export default async function ProfileSetupPage() {
@@ -26,8 +25,6 @@ export default async function ProfileSetupPage() {
       return <StudentProfileSetup />;
     case "LECTURER":
       return <LecturerProfileSetup />;
-    case "INSTITUTION_ADMIN":
-      return <ProviderProfileSetup />;
     case "EMPLOYER":
       return <EmployerProfileSetup />;
     case "ADMIN":

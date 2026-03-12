@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { createClient } from "~/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { deleteOwnAccount } from "../actions";
 
 export default function DeleteAccountSection() {
   const supabase = createClient();
@@ -18,21 +19,13 @@ export default function DeleteAccountSection() {
       setError('Please type "DELETE" to confirm');
       return;
     }
+
     setError("");
     setDeleting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Deactivate account instead of hard delete
-      const { error } = await supabase
-        .from("Profile")
-        .update({ isActive: false, updatedAt: new Date().toISOString() })
-        .eq("id", user.id);
-
-      if (error) throw error;
-
+      await deleteOwnAccount();
+      // Sign out client-side after server has deleted the account
       await supabase.auth.signOut();
       router.push("/");
     } catch (err) {
@@ -45,7 +38,7 @@ export default function DeleteAccountSection() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900">Delete Account</h2>
-        <p className="mt-1 text-sm text-gray-500">Permanently deactivate your account</p>
+        <p className="mt-1 text-sm text-gray-500">Permanently delete your account and all associated data</p>
       </div>
 
       <div className="rounded-xl border border-red-200 bg-red-50 p-5">
@@ -54,7 +47,7 @@ export default function DeleteAccountSection() {
           <div>
             <p className="text-sm font-semibold text-red-800">This action cannot be undone</p>
             <p className="mt-1 text-sm text-red-700">
-              Deleting your account will deactivate your profile and remove access to all your data including enrollments, applications, and credentials.
+              Deleting your account will permanently remove your profile, enrollments, job applications, and credentials from our platform.
             </p>
           </div>
         </div>
@@ -84,12 +77,14 @@ export default function DeleteAccountSection() {
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
           )}
 
           <div className="flex gap-3">
             <button
-              onClick={() => { setConfirmed(false); setConfirmText(""); }}
+              onClick={() => { setConfirmed(false); setConfirmText(""); setError(""); }}
               className="flex-1 rounded-xl border border-gray-200 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Cancel

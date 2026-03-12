@@ -25,21 +25,48 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Single getUser call — refreshes session AND gives us the user
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Protect dashboard routes
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  const pathname = request.nextUrl.pathname;
+
+  // Public paths that never need auth or active checks
+  const isPublicPath =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/suspended");
+
+  // Redirect unauthenticated users away from protected routes
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Protect admin routes
-  if (!user && request.nextUrl.pathname.startsWith("/admin")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  // Check isActive for authenticated users on protected routes
+  if (user && !isPublicPath) {
+    const { data: profile } = await supabase
+      .from("Profile")
+      .select("isActive, role")
+      .eq("id", user.id)
+      .single();
+
+    // Suspended user — sign them out and redirect to /suspended
+    if (profile && profile.isActive === false) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/suspended";
+      return NextResponse.redirect(url);
+    }
+
+    // Non-admin trying to access /admin
+    if (pathname.startsWith("/admin") && profile?.role !== "ADMIN") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

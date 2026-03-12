@@ -3,7 +3,6 @@ import { createClient } from "~/lib/supabase/server";
 import { createAdminClient } from "~/lib/supabase/admin";
 import StudentDashboard from "./_components/StudentDashboard";
 import LecturerDashboard from "./_components/LecturerDashboard";
-import ProviderDashboard from "./_components/ProviderDashboard";
 import EmployerDashboard from "./_components/EmployerDashboard";
 
 export default async function DashboardPage() {
@@ -37,8 +36,6 @@ export default async function DashboardPage() {
       return <StudentDashboard />;
     case "LECTURER":
       return <LecturerDashboard />;
-    case "INSTITUTION_ADMIN":
-      return <ProviderDashboard />;
     case "EMPLOYER":
       return <EmployerDashboard />;
     case "ADMIN":
