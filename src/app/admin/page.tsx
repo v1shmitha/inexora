@@ -5,7 +5,6 @@ import AdminDashboard from "./components/AdminDashboard";
 export default async function AdminPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
   const adminSupabase = createAdminClient();
 
   const [
@@ -21,6 +20,8 @@ export default async function AdminPage() {
     { data: allJobs },
     { data: allInstitutions },
     { data: approvedLecturers },
+    { data: rejectedLecturers },  // ← new
+    { data: rejectedEmployers },  // ← new
   ] = await Promise.all([
     adminSupabase.from("Profile").select("*", { count: "exact", head: true }),
     adminSupabase.from("Program").select("*", { count: "exact", head: true }),
@@ -29,9 +30,7 @@ export default async function AdminPage() {
       .from("Profile")
       .select("id, fullName, email, role, isActive, createdAt")
       .order("createdAt", { ascending: false })
-      .limit(50),
-    // Pending institutions: admin-created ones don't go through approval,
-    // but keep this for any legacy self-registered ones
+      .limit(5),
     adminSupabase
       .from("Institution")
       .select("id, name, type, country, city, createdAt")
@@ -46,7 +45,11 @@ export default async function AdminPage() {
       .eq("approvalStatus", "PENDING"),
     adminSupabase
       .from("Profile")
-      .select("id, fullName, email, role, isActive, createdAt")
+      .select(`
+        id, fullName, email, role, isActive, createdAt,
+        lecturer:Lecturer(approvalStatus),
+        employer:Employer(approvalStatus)
+      `)
       .order("createdAt", { ascending: false })
       .limit(100),
     adminSupabase
@@ -59,7 +62,6 @@ export default async function AdminPage() {
       .select("id, title, type, isActive, createdAt, employer:Employer(companyName)")
       .order("createdAt", { ascending: false })
       .limit(100),
-    // All approved institutions with their managers
     adminSupabase
       .from("Institution")
       .select(`
@@ -71,13 +73,36 @@ export default async function AdminPage() {
       `)
       .eq("approvalStatus", "APPROVED")
       .order("createdAt", { ascending: false }),
-    // Approved lecturers for manager assignment dropdown
     adminSupabase
       .from("Lecturer")
       .select("id, title, institutionId, profile:Profile(fullName, email)")
       .eq("approvalStatus", "APPROVED")
       .order("createdAt", { ascending: false }),
+    // ── Rejected ──────────────────────────────────────────────────────────
+    adminSupabase
+      .from("Lecturer")
+      .select("id, profileId, title, specialization, createdAt, profile:Profile(fullName, email)")
+      .eq("approvalStatus", "REJECTED")
+      .order("createdAt", { ascending: false }),
+    adminSupabase
+      .from("Employer")
+      .select("id, profileId, companyName, industry, createdAt, profile:Profile(fullName, email)")
+      .eq("approvalStatus", "REJECTED")
+      .order("createdAt", { ascending: false }),
   ]);
+
+  const filteredUsers = (allUsers ?? []).filter((u) => {
+    if (u.role === "STUDENT" || u.role === "ADMIN") return true;
+    if (u.role === "LECTURER") {
+      const lec = Array.isArray(u.lecturer) ? u.lecturer[0] : null;
+      return lec?.approvalStatus === "APPROVED";
+    }
+    if (u.role === "EMPLOYER") {
+      const emp = Array.isArray(u.employer) ? u.employer[0] : null;
+      return emp?.approvalStatus === "APPROVED";
+    }
+    return false;
+  });
 
   const stats = {
     totalUsers: totalUsers ?? 0,
@@ -93,7 +118,9 @@ export default async function AdminPage() {
       pendingInstitutions={pendingInstitutions ?? []}
       pendingEmployers={pendingEmployers ?? []}
       pendingLecturers={pendingLecturers ?? []}
-      allUsers={allUsers ?? []}
+      rejectedLecturers={rejectedLecturers ?? []}   // ← new
+      rejectedEmployers={rejectedEmployers ?? []}   // ← new
+      allUsers={filteredUsers}
       allPrograms={allPrograms ?? []}
       allJobs={allJobs ?? []}
       allInstitutions={allInstitutions ?? []}

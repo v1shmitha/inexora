@@ -40,23 +40,57 @@ export async function reactivateUser(id: string) {
 }
 
 export async function deleteUser(id: string) {
+  console.log("deleteUser called with id:", id);
   const supabase = createAdminClient();
 
-  const { data: student } = await supabase.from("Student").select("id").eq("profileId", id).single();
-  const { data: lecturer } = await supabase.from("Lecturer").select("id").eq("profileId", id).single();
-  const { data: employer } = await supabase.from("Employer").select("id").eq("profileId", id).single();
+  const { data: students } = await supabase
+    .from("Student")
+    .select("id")
+    .eq("profileId", id);
+  const { data: lecturers } = await supabase
+    .from("Lecturer")
+    .select("id")
+    .eq("profileId", id);
+  const { data: employers } = await supabase
+    .from("Employer")
+    .select("id")
+    .eq("profileId", id);
+
+  const student = students?.[0] ?? null;
+  const lecturer = lecturers?.[0] ?? null;
+  const employer = employers?.[0] ?? null;
+
+  console.log(
+    "student:",
+    student,
+    "lecturer:",
+    lecturer,
+    "employer:",
+    employer,
+  );
 
   if (student) {
-    await supabase.from("AssessmentSubmission").delete().eq("studentId", student.id);
+    await supabase
+      .from("AssessmentSubmission")
+      .delete()
+      .eq("studentId", student.id);
     await supabase.from("JobApplication").delete().eq("studentId", student.id);
 
     const { data: enrollments } = await supabase
-      .from("Enrollment").select("id").eq("studentId", student.id);
+      .from("Enrollment")
+      .select("id")
+      .eq("studentId", student.id);
 
     if (enrollments && enrollments.length > 0) {
       const enrollmentIds = enrollments.map((e) => e.id);
-      await supabase.from("CourseEnrollment").delete().in("enrollmentId", enrollmentIds);
-      await supabase.from("Credential").delete().in("enrollmentId", enrollmentIds);
+      await supabase
+        .from("CourseEnrollment")
+        .delete()
+        .in("enrollmentId", enrollmentIds);
+      await supabase
+        .from("Credential")
+        .delete()
+        .in("enrollmentId", enrollmentIds);
       await supabase.from("Payment").delete().in("enrollmentId", enrollmentIds);
       await supabase.from("Enrollment").delete().eq("studentId", student.id);
     }
@@ -66,14 +100,22 @@ export async function deleteUser(id: string) {
   }
 
   if (lecturer) {
-    await supabase.from("InstitutionManager").delete().eq("lecturerId", lecturer.id);
-    await supabase.from("CourseLecturer").delete().eq("lecturerId", lecturer.id);
+    await supabase
+      .from("InstitutionManager")
+      .delete()
+      .eq("lecturerId", lecturer.id);
+    await supabase
+      .from("CourseLecturer")
+      .delete()
+      .eq("lecturerId", lecturer.id);
     await supabase.from("Lecturer").delete().eq("profileId", id);
   }
 
   if (employer) {
     const { data: jobs } = await supabase
-      .from("JobListing").select("id").eq("employerId", employer.id);
+      .from("JobListing")
+      .select("id")
+      .eq("employerId", employer.id);
 
     if (jobs && jobs.length > 0) {
       const jobIds = jobs.map((j) => j.id);
@@ -89,10 +131,15 @@ export async function deleteUser(id: string) {
   await supabase.from("Payment").delete().eq("profileId", id);
   await supabase.from("Announcement").delete().eq("publishedBy", id);
 
-  const { error: profileError } = await supabase.from("Profile").delete().eq("id", id);
-  if (profileError) throw new Error(profileError.message);
+  console.log("Reached Profile delete");
+  const { error: profileError } = await supabase
+    .from("Profile")
+    .delete()
+    .eq("id", id);
+  console.log("Profile delete:", profileError?.message ?? "ok");
 
   const { error: authError } = await supabase.auth.admin.deleteUser(id);
+  console.log("Auth delete:", authError?.message ?? "ok");
   if (authError && !authError.message.includes("User not found")) {
     throw new Error(authError.message);
   }
@@ -104,11 +151,29 @@ export async function deleteUser(id: string) {
 
 export async function approveLecturer(id: string) {
   const supabase = createAdminClient();
+
+  // Get profileId from Lecturer row
+  const { data: lec, error: fetchError } = await supabase
+    .from("Lecturer")
+    .select("profileId")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  // Activate the Profile
+  const { error: profileError } = await supabase
+    .from("Profile")
+    .update({ isActive: true, isVerified: true })
+    .eq("id", lec.profileId);
+  if (profileError) throw new Error(profileError.message);
+
+  // Approve the Lecturer
   const { error } = await supabase
     .from("Lecturer")
     .update({ approvalStatus: "APPROVED" })
     .eq("id", id);
   if (error) throw new Error(error.message);
+
   revalidatePath("/admin");
 }
 
@@ -190,47 +255,52 @@ export async function createInstitution(data: {
 }) {
   const supabase = createAdminClient();
 
-    const baseSlug = data.name
+  const baseSlug = data.name
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, "")   // strip special chars
-    .replace(/\s+/g, "-")            // spaces → hyphens
-    .replace(/-+/g, "-");            // collapse multiple hyphens
+    .replace(/[^a-z0-9\s-]/g, "") // strip special chars
+    .replace(/\s+/g, "-") // spaces → hyphens
+    .replace(/-+/g, "-"); // collapse multiple hyphens
 
   // Append a short random suffix to avoid collisions
   const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
 
-  const { data: newInst, error } = await supabase.from("Institution").insert({
-    id: crypto.randomUUID(),
-    name: data.name,
-    slug,
-    type: data.type,
-    country: data.country,
-    city: data.city ?? null,
-    website: data.website ?? null,
-    description: data.description ?? null,
-    isActive: true,
-    isVerified: true,
-    approvalStatus: "APPROVED",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  })
-  .select()
-  .single();
+  const { data: newInst, error } = await supabase
+    .from("Institution")
+    .insert({
+      id: crypto.randomUUID(),
+      name: data.name,
+      slug,
+      type: data.type,
+      country: data.country,
+      city: data.city ?? null,
+      website: data.website ?? null,
+      description: data.description ?? null,
+      isActive: true,
+      isVerified: true,
+      approvalStatus: "APPROVED",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
   // revalidatePath("/admin");
   return newInst;
 }
 
-export async function updateInstitution(id: string, data: {
-  name?: string;
-  type?: string;
-  country?: string;
-  city?: string;
-  website?: string;
-  description?: string;
-}) {
+export async function updateInstitution(
+  id: string,
+  data: {
+    name?: string;
+    type?: string;
+    country?: string;
+    city?: string;
+    website?: string;
+    description?: string;
+  },
+) {
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
@@ -244,11 +314,28 @@ export async function updateInstitution(id: string, data: {
 
 export async function approveEmployer(id: string) {
   const supabase = createAdminClient();
+
+  const { data: emp, error: fetchError } = await supabase
+    .from("Employer")
+    .select("profileId")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  // Activate the Profile
+  const { error: profileError } = await supabase
+    .from("Profile")
+    .update({ isActive: true, isVerified: true })
+    .eq("id", emp.profileId);
+  if (profileError) throw new Error(profileError.message);
+
+  // Approve the Employer
   const { error } = await supabase
     .from("Employer")
     .update({ isVerified: true, approvalStatus: "APPROVED" })
     .eq("id", id);
   if (error) throw new Error(error.message);
+
   revalidatePath("/admin");
 }
 
@@ -259,6 +346,58 @@ export async function rejectEmployer(id: string) {
     .update({ isVerified: false, approvalStatus: "REJECTED" })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+// ── Re-approve rejected ────────────────────────────────────────────────────
+
+export async function reApproveLecturer(id: string) {
+  const supabase = createAdminClient();
+
+  const { data: lec, error: fetchError } = await supabase
+    .from("Lecturer")
+    .select("profileId")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const { error: profileError } = await supabase
+    .from("Profile")
+    .update({ isActive: true, isVerified: true })
+    .eq("id", lec.profileId);
+  if (profileError) throw new Error(profileError.message);
+
+  const { error } = await supabase
+    .from("Lecturer")
+    .update({ approvalStatus: "APPROVED" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+}
+
+export async function reApproveEmployer(id: string) {
+  const supabase = createAdminClient();
+
+  const { data: emp, error: fetchError } = await supabase
+    .from("Employer")
+    .select("profileId")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const { error: profileError } = await supabase
+    .from("Profile")
+    .update({ isActive: true, isVerified: true })
+    .eq("id", emp.profileId);
+  if (profileError) throw new Error(profileError.message);
+
+  const { error } = await supabase
+    .from("Employer")
+    .update({ isVerified: true, approvalStatus: "APPROVED" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
   revalidatePath("/admin");
 }
 
@@ -329,17 +468,23 @@ export async function assignManager(data: {
 
 export async function removeManager(id: string) {
   const supabase = createAdminClient();
-  const { error } = await supabase.from("InstitutionManager").delete().eq("id", id);
+  const { error } = await supabase
+    .from("InstitutionManager")
+    .delete()
+    .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }
 
-export async function updateManagerPermissions(id: string, perms: {
-  canEditProfile: boolean;
-  canManagePrograms: boolean;
-  canViewAnalytics: boolean;
-  canPostAnnouncements: boolean;
-}) {
+export async function updateManagerPermissions(
+  id: string,
+  perms: {
+    canEditProfile: boolean;
+    canManagePrograms: boolean;
+    canViewAnalytics: boolean;
+    canPostAnnouncements: boolean;
+  },
+) {
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("InstitutionManager")
