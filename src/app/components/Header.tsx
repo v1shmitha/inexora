@@ -117,7 +117,8 @@ export default function Header() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
+            {/* <GraduationCap className="h-8 w-8 text-blue-600" /> */}
+            <img src="/favicon-32x32.png" alt="DEH-SL" className="h-8 w-8" />
             <span className="text-xl font-bold tracking-tight text-gray-900">
               DEH-SL
             </span>
