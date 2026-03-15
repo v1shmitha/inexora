@@ -10,8 +10,10 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="mb-4 flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-500" />
-              <span className="text-xl font-bold text-white">iNEXORA</span>
+              {/* <GraduationCap className="h-8 w-8 text-blue-500" /> */}
+              <img src="/logo.png" alt="iNEXORA" className="h-10 w-36" />
+              {/* <img src="/favicon.ico" alt="iNEXORA" className="h-8 w-8" />
+              <span className="text-xl font-bold text-white">iNEXORA</span> */}
             </div>
             <p className="text-sm leading-relaxed">
               Sri Lanka&apos;s gateway to global education and careers.
@@ -83,7 +85,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start space-x-2">
                 <Mail className="mt-1 h-4 w-4 flex-shrink-0" />
-                <span>info@iNEXORA.lk</span>
+                <span>info@inexora.lk</span>
               </li>
               <li className="flex items-start space-x-2">
                 <Phone className="mt-1 h-4 w-4 flex-shrink-0" />
