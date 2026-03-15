@@ -11,28 +11,28 @@ export default function Contact() {
       icon: Users,
       title: "For Students",
       description: "Questions about programs, applications, or your student journey?",
-      email: "students@deh-sl.lk",
+      email: "students@iNEXORA.lk",
       action: "Student Portal",
     },
     {
       icon: Building2,
       title: "For Universities",
-      description: "Interested in partnering with DEH-SL?",
-      email: "partners@deh-sl.lk",
+      description: "Interested in partnering with iNEXORA?",
+      email: "partners@iNEXORA.lk",
       action: "Partner With Us",
     },
     {
       icon: Briefcase,
       title: "For Employers",
       description: "Looking to recruit talent or post opportunities?",
-      email: "employers@deh-sl.lk",
+      email: "employers@iNEXORA.lk",
       action: "Employer Access",
     },
     {
       icon: Shield,
       title: "For Government & NGOs",
       description: "Collaboration and regulatory inquiries",
-      email: "info@deh-sl.lk",
+      email: "info@iNEXORA.lk",
       action: "Contact Us",
     },
   ];
@@ -137,7 +137,7 @@ export default function Contact() {
                   <Mail className="mt-1 h-6 w-6 flex-shrink-0 text-blue-600" />
                   <div>
                     <p className="mb-1 font-semibold text-gray-900">Email</p>
-                    <p className="text-gray-600">info@deh-sl.lk</p>
+                    <p className="text-gray-600">info@iNEXORA.lk</p>
                   </div>
                 </div>
               </div>
@@ -180,7 +180,7 @@ export default function Contact() {
             Ready to Transform Education?
           </h2>
           <p className="mb-8 text-xl leading-relaxed text-blue-100">
-            Join thousands already benefiting from DEH-SL&apos;s unified
+            Join thousands already benefiting from iNEXORA&apos;s unified
             education platform
           </p>
           <button

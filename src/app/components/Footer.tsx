@@ -11,7 +11,7 @@ export default function Footer() {
           <div>
             <div className="mb-4 flex items-center space-x-2">
               <GraduationCap className="h-8 w-8 text-blue-500" />
-              <span className="text-xl font-bold text-white">DEH-SL</span>
+              <span className="text-xl font-bold text-white">iNEXORA</span>
             </div>
             <p className="text-sm leading-relaxed">
               Sri Lanka&apos;s gateway to global education and careers.
@@ -83,7 +83,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start space-x-2">
                 <Mail className="mt-1 h-4 w-4 flex-shrink-0" />
-                <span>info@deh-sl.lk</span>
+                <span>info@iNEXORA.lk</span>
               </li>
               <li className="flex items-start space-x-2">
                 <Phone className="mt-1 h-4 w-4 flex-shrink-0" />

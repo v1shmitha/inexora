@@ -125,9 +125,10 @@ export default function Signup() {
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
             <GraduationCap className="h-5 w-5 text-white" />
+            {/* <img src="/favicon.ico" alt="iNEXORA" className="h-10 w-36" /> */}
           </div>
           <div>
-            <p className="text-sm font-bold tracking-wide text-white">DEH-SL</p>
+            <p className="text-sm font-bold tracking-wide text-white">iNEXORA</p>
             <p className="text-xs text-slate-400">Digital Education Hub</p>
           </div>
         </div>
@@ -183,7 +184,7 @@ export default function Signup() {
               <GraduationCap className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold tracking-wide text-slate-900">DEH-SL</p>
+              <p className="text-sm font-bold tracking-wide text-slate-900">iNEXORA</p>
               <p className="text-xs text-slate-500">Digital Education Hub</p>
             </div>
           </div>

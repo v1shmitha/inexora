@@ -48,7 +48,7 @@ export default function About() {
       <section className="bg-gradient-to-br from-slate-50 to-blue-50 py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            About DEH-SL
+            About iNEXORA
           </h1>
           <p className="text-xl text-gray-600 leading-relaxed">
             Building Sri Lanka's digital education infrastructure to connect students with world-class learning opportunities and career pathways
@@ -107,7 +107,7 @@ export default function About() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Sri Lanka Needs DEH-SL
+              Why Sri Lanka Needs iNEXORA
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Addressing critical challenges in our education ecosystem
@@ -129,7 +129,7 @@ export default function About() {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Social & Economic Value</h3>
                 <p className="text-lg text-gray-700 leading-relaxed">
-                  DEH-SL represents more than a platform—it's a national infrastructure investment that will yield returns through increased employment, higher incomes, reduced education costs, and enhanced global competitiveness. By democratizing access to education and creating transparent pathways to careers, we're building the foundation for sustainable national development.
+                  iNEXORA represents more than a platform—it's a national infrastructure investment that will yield returns through increased employment, higher incomes, reduced education costs, and enhanced global competitiveness. By democratizing access to education and creating transparent pathways to careers, we're building the foundation for sustainable national development.
                 </p>
               </div>
             </div>
@@ -165,7 +165,7 @@ export default function About() {
             Join Us in Transforming Education
           </h2>
           <p className="text-xl text-blue-100 leading-relaxed">
-            Whether you're a student seeking opportunities, an institution offering programs, or an employer looking for talent, DEH-SL provides the platform to achieve your goals while contributing to national progress.
+            Whether you're a student seeking opportunities, an institution offering programs, or an employer looking for talent, iNEXORA provides the platform to achieve your goals while contributing to national progress.
           </p>
         </div>
       </section>
