@@ -14,18 +14,20 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
 
@@ -37,6 +39,29 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/about") ||
     pathname.startsWith("/contact") ||
     pathname.startsWith("/suspended");
+
+  if (user && isPublicPath) {
+    const { data: profile } = await supabase
+      .from("Profile")
+      .select("isActive, role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.isActive !== false) {
+      // don't redirect suspended users
+      if (profile?.role === "ADMIN") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin";
+        return NextResponse.redirect(url);
+      }
+      // Optional: redirect regular logged-in users away from /login and /signup
+      if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
 
   // Redirect unauthenticated users away from protected routes
   if (!user && !isPublicPath) {

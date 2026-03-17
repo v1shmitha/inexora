@@ -21,18 +21,27 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
       if (error) throw error;
 
-      router.push("/dashboard");
-      router.refresh();
+      const { data: profile } = await supabase
+        .from("Profile")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profile?.role === "ADMIN") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+      // router.refresh();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Invalid email or password"
+        err instanceof Error ? err.message : "Invalid email or password",
       );
     } finally {
       setLoading(false);
@@ -42,12 +51,11 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 px-4">
       <div className="relative w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-
         {/* Back to Home */}
         <button
           type="button"
           onClick={() => router.push("/")}
-          className="absolute left-4 top-4 flex items-center gap-2 text-sm text-gray-500 transition hover:text-gray-700"
+          className="absolute top-4 left-4 flex items-center gap-2 text-sm text-gray-500 transition hover:text-gray-700"
         >
           <ArrowLeftIcon className="h-5 w-5" />
         </button>
@@ -75,7 +83,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 transition outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="you@example.com"
             />
           </div>
@@ -93,7 +101,7 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 transition outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your password"
             />
           </div>

@@ -425,6 +425,7 @@ export default function AdminDashboard({
   const [managerLoading, setManagerLoading] = useState(false);
   const [managerError, setManagerError] = useState<string | null>(null);
   const [editingManagerId, setEditingManagerId] = useState<string | null>(null);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const router = useRouter();
   const supabase = createClient();
@@ -1037,7 +1038,7 @@ export default function AdminDashboard({
         </nav>
         <div className="border-t border-slate-700 p-3">
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowSignOutConfirm(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
           >
             <LogOut className="h-4 w-4" />
@@ -2243,7 +2244,7 @@ export default function AdminDashboard({
                   <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search programs or institutions…"
+                    placeholder="Search programs…"
                     value={programSearch}
                     onChange={(e) => setProgramSearch(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 py-2.5 pr-4 pl-9 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
@@ -2278,7 +2279,7 @@ export default function AdminDashboard({
                     filteredPrograms.map((program) => {
                       const inst = Array.isArray(program.institution)
                         ? program.institution[0]
-                        : null;
+                        : (program.institution as { name: string } | null);
                       return (
                         <div
                           key={program.id}
@@ -2587,6 +2588,33 @@ export default function AdminDashboard({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-amber-600">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-lg font-bold text-slate-900">Sign Out?</h3>
+            </div>
+            <p className="mb-6 text-slate-600">
+              Are you sure you want to sign out of the admin panel?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                Yes, Sign Out
+              </button>
+            </div>
           </div>
         </div>
       )}

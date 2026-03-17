@@ -174,7 +174,7 @@ export default function Header() {
                     </div>
 
                     {/* Admin only */}
-                    {profile?.is_admin && (
+                    {/* {profile?.is_admin && (
                       <Link
                         href="/admin"
                         onClick={() => setIsProfileOpen(false)}
@@ -183,7 +183,7 @@ export default function Header() {
                         <Shield className="h-4 w-4" />
                         <span>Admin Panel</span>
                       </Link>
-                    )}
+                    )} */}
 
                     <button
                       onClick={handleSettingsClick}
@@ -255,7 +255,7 @@ export default function Header() {
             ))}
             {user ? (
               <div className="mt-4 space-y-2 border-t border-gray-100 px-4 pt-4">
-                {profile?.is_admin && (
+                {/* {profile?.is_admin && (
                   <Link
                     href="/admin"
                     onClick={() => setMobileMenuOpen(false)}
@@ -264,7 +264,7 @@ export default function Header() {
                     <Shield className="h-4 w-4" />
                     Admin Panel
                   </Link>
-                )}
+                )} */}
                 <Link
                   href="/settings"
                   onClick={() => setMobileMenuOpen(false)}
