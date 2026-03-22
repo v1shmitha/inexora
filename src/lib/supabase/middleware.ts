@@ -31,14 +31,15 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Public paths that never need auth or active checks
   const isPublicPath =
     pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/about") ||
     pathname.startsWith("/contact") ||
-    pathname.startsWith("/suspended");
+    pathname.startsWith("/suspended") ||
+    pathname.startsWith("/auth") ||
+    pathname === "/institution/reset-password";
 
   if (user && isPublicPath) {
     const { data: profile } = await supabase
@@ -48,13 +49,16 @@ export async function updateSession(request: NextRequest) {
       .single();
 
     if (profile?.isActive !== false) {
-      // don't redirect suspended users
       if (profile?.role === "ADMIN") {
         const url = request.nextUrl.clone();
         url.pathname = "/admin";
         return NextResponse.redirect(url);
       }
-      // Optional: redirect regular logged-in users away from /login and /signup
+      if (profile?.role === "INSTITUTION") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/institution";
+        return NextResponse.redirect(url);
+      }
       if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
         const url = request.nextUrl.clone();
         url.pathname = "/dashboard";
@@ -63,14 +67,12 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Redirect unauthenticated users away from protected routes
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Check isActive for authenticated users on protected routes
   if (user && !isPublicPath) {
     const { data: profile } = await supabase
       .from("Profile")
@@ -78,7 +80,6 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    // Suspended user — sign them out and redirect to /suspended
     if (profile && profile.isActive === false) {
       await supabase.auth.signOut();
       const url = request.nextUrl.clone();
@@ -86,10 +87,21 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Non-admin trying to access /admin
     if (pathname.startsWith("/admin") && profile?.role !== "ADMIN") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    if (pathname.startsWith("/institution") && profile?.role !== "INSTITUTION") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    if (profile?.role === "INSTITUTION" && !pathname.startsWith("/institution")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/institution";
       return NextResponse.redirect(url);
     }
   }

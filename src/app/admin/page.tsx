@@ -65,7 +65,8 @@ export default async function AdminPage() {
     adminSupabase
       .from("Institution")
       .select(`
-        id, name, type, country, city, isActive, isVerified, createdAt,
+        id, name, type, country, city, email, isActive, isVerified, createdAt,
+        account:InstitutionAccount(id),
         managers:InstitutionManager(
           id, canEditProfile, canManagePrograms, canViewAnalytics, canPostAnnouncements, assignedAt,
           lecturer:Lecturer(id, title, profile:Profile(fullName, email))

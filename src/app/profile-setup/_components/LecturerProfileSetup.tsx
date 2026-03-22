@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, ChevronRight, Loader2, X, Building2 } from "lucide-react";
 import { createClient } from "~/lib/supabase/client";
+import { api } from "~/trpc/react";
 
 const SUBJECT_AREAS = [
   "Business & Management", "IT & Computer Science", "AI & Data Science",
@@ -12,13 +13,6 @@ const SUBJECT_AREAS = [
 ];
 
 const TITLES = ["Dr.", "Prof.", "Mr.", "Mrs.", "Ms.", "Eng."];
-
-interface Institution {
-  id: string;
-  name: string;
-  type: string;
-  city: string | null;
-}
 
 export default function LecturerProfileSetup() {
   const router = useRouter();
@@ -36,8 +30,6 @@ export default function LecturerProfileSetup() {
   const [isVisiting, setIsVisiting] = useState(false);
 
   // Step 2 — Institution
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [institutionsLoading, setInstitutionsLoading] = useState(false);
   const [institutionId, setInstitutionId] = useState<string>("");
   const [institutionSearch, setInstitutionSearch] = useState("");
 
@@ -48,33 +40,22 @@ export default function LecturerProfileSetup() {
   const [bio, setBio] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
 
-  // Fetch institutions when entering step 2
-  useEffect(() => {
-    if (step !== 2) return;
-    const fetchInstitutions = async () => {
-      setInstitutionsLoading(true);
-      try {
-        const res = await fetch("/api/institutions/list");
-        const data = await res.json() as { institutions: Institution[] };
-        setInstitutions(data.institutions ?? []);
-      } catch {
-        // silently fail — user can still proceed as independent
-      } finally {
-        setInstitutionsLoading(false);
-      }
-    };
-    void fetchInstitutions();
-  }, [step]);
+  // ── tRPC: fetch institutions (replaces old /api/institutions/list fetch) ──
+  const { data: institutions = [], isLoading: institutionsLoading } =
+    api.institution.list.useQuery(undefined, {
+      enabled: step === 2, // only fetch when on step 2
+    });
 
   const toggleSpecialization = (s: string) => {
     setSpecializations((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
   };
 
-  const filteredInstitutions = institutions.filter((i) =>
-    i.name.toLowerCase().includes(institutionSearch.toLowerCase()) ||
-    i.city?.toLowerCase().includes(institutionSearch.toLowerCase())
+  const filteredInstitutions = institutions.filter(
+    (i) =>
+      i.name.toLowerCase().includes(institutionSearch.toLowerCase()) ||
+      i.city?.toLowerCase().includes(institutionSearch.toLowerCase()),
   );
 
   const selectedInstitution = institutions.find((i) => i.id === institutionId);
@@ -235,7 +216,9 @@ export default function LecturerProfileSetup() {
                     <Building2 className="h-5 w-5 text-violet-600" />
                     <div>
                       <p className="text-sm font-semibold text-violet-900">{selectedInstitution.name}</p>
-                      <p className="text-xs text-violet-600">{selectedInstitution.type}{selectedInstitution.city ? ` · ${selectedInstitution.city}` : ""}</p>
+                      <p className="text-xs text-violet-600">
+                        {selectedInstitution.type}{selectedInstitution.city ? ` · ${selectedInstitution.city}` : ""}
+                      </p>
                     </div>
                   </div>
                   <button onClick={() => setInstitutionId("")} className="text-violet-400 hover:text-violet-600">
@@ -245,13 +228,9 @@ export default function LecturerProfileSetup() {
               )}
 
               {/* Independent option */}
-              <button
-                type="button"
-                onClick={() => setInstitutionId("")}
+              <button type="button" onClick={() => setInstitutionId("")}
                 className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition ${
-                  institutionId === ""
-                    ? "border-violet-600 bg-violet-50"
-                    : "border-gray-200 hover:border-violet-300"
+                  institutionId === "" ? "border-violet-600 bg-violet-50" : "border-gray-200 hover:border-violet-300"
                 }`}
               >
                 <p className={`font-medium ${institutionId === "" ? "text-violet-700" : "text-gray-700"}`}>
@@ -262,12 +241,8 @@ export default function LecturerProfileSetup() {
 
               {/* Search */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Search Institutions
-                </label>
-                <input
-                  type="text"
-                  value={institutionSearch}
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Search Institutions</label>
+                <input type="text" value={institutionSearch}
                   onChange={(e) => setInstitutionSearch(e.target.value)}
                   placeholder="Search by name or city..."
                   className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
@@ -286,10 +261,7 @@ export default function LecturerProfileSetup() {
                   </div>
                 ) : (
                   filteredInstitutions.map((inst) => (
-                    <button
-                      key={inst.id}
-                      type="button"
-                      onClick={() => setInstitutionId(inst.id)}
+                    <button key={inst.id} type="button" onClick={() => setInstitutionId(inst.id)}
                       className={`flex w-full items-center gap-3 border-b border-gray-50 px-4 py-3 text-left transition last:border-0 hover:bg-gray-50 ${
                         institutionId === inst.id ? "bg-violet-50" : ""
                       }`}
@@ -397,13 +369,12 @@ export default function LecturerProfileSetup() {
                 <button onClick={handleSubmit} disabled={loading}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50"
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {loading ? "Saving..." : "Complete Setup"}
                 </button>
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>

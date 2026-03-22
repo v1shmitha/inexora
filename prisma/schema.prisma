@@ -11,39 +11,40 @@ datasource db {
 }
 
 model Profile {
-  id            String         @id
-  email         String         @unique
-  fullName      String?
-  avatarUrl     String?
-  phone         String?
-  nicNumber     String?        @unique
-  dateOfBirth   DateTime?
-  gender        Gender?
-  nationality   String?        @default("Sri Lankan")
-  address       String?
-  city          String?
-  district      String?
-  role          Role           @default(STUDENT)
-  isVerified    Boolean        @default(false)
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  is_admin      Boolean        @default(false)
-  announcements Announcement[]
-  employer      Employer?
-  lecturer      Lecturer?
-  notifications Notification[]
-  payments      Payment[]
-  student       Student?
-  subscriptions Subscription[]
+  id                 String              @id
+  email              String              @unique
+  fullName           String?
+  avatarUrl          String?
+  phone              String?
+  nicNumber          String?             @unique
+  dateOfBirth        DateTime?
+  gender             Gender?
+  nationality        String?             @default("Sri Lankan")
+  address            String?
+  city               String?
+  district           String?
+  role               Role                @default(STUDENT)
+  isVerified         Boolean             @default(false)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  is_admin           Boolean             @default(false)
+  announcements      Announcement[]
+  employer           Employer?
+  lecturer           Lecturer?
+  notifications      Notification[]
+  payments           Payment[]
+  student            Student?
+  subscriptions      Subscription[]
+  institutionAccount InstitutionAccount?
 
   @@schema("public")
 }
 
 model Institution {
-  id                  String               @id @default(cuid())
+  id                  String                    @id @default(cuid())
   name                String
-  slug                String               @unique
+  slug                String                    @unique
   type                InstitutionType
   description         String?
   logoUrl             String?
@@ -52,18 +53,19 @@ model Institution {
   phone               String?
   address             String?
   city                String?
-  country             String               @default("Sri Lanka")
+  country             String                    @default("Sri Lanka")
   accreditationBody   String?
   accreditationNumber String?
-  isVerified          Boolean              @default(false)
-  isActive            Boolean              @default(true)
-  approvalStatus      String               @default("APPROVED")
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  isVerified          Boolean                   @default(false)
+  isActive            Boolean                   @default(true)
+  approvalStatus      InstitutionApprovalStatus @default(PENDING)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
   announcements       Announcement[]
   lecturers           Lecturer[]
   managers            InstitutionManager[]
   programs            Program[]
+  account             InstitutionAccount?
 
   @@schema("public")
 }
@@ -85,11 +87,24 @@ model InstitutionManager {
   @@schema("public")
 }
 
+model InstitutionAccount {
+  id            String      @id @default(cuid())
+  profileId     String      @unique
+  institutionId String      @unique
+  createdAt     DateTime    @default(now())
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
 model Program {
-  id                   String         @id @default(cuid())
+  id                   String                @id @default(cuid())
   institutionId        String
+  createdById          String?
+  reviewedById         String?
   title                String
-  slug                 String
+  slug                 String                @unique
   type                 ProgramType
   level                ProgramLevel
   field                ProgramField
@@ -101,25 +116,31 @@ model Program {
   careerOutcomes       String?
   creditPoints         Int?
   creditFramework      String?
-  localPrice           Decimal?       @db.Decimal(10, 2)
-  foreignPrice         Decimal?       @db.Decimal(10, 2)
-  scholarshipAvailable Boolean        @default(false)
-  isPublished          Boolean        @default(false)
-  isActive             Boolean        @default(true)
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  localPrice           Decimal?              @db.Decimal(10, 2)
+  foreignPrice         Decimal?              @db.Decimal(10, 2)
+  scholarshipAvailable Boolean               @default(false)
+  isPublished          Boolean               @default(false)
+  isActive             Boolean               @default(true)
+  approvalStatus       ProgramApprovalStatus @default(DRAFT)
+  reviewNote           String?
+  reviewedAt           DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   announcements        Announcement[]
   courses              Course[]
   credentials          Credential[]
   enrollments          Enrollment[]
-  institution          Institution    @relation(fields: [institutionId], references: [id])
+  institution          Institution           @relation(fields: [institutionId], references: [id])
+  createdBy            Lecturer?             @relation("ProgramCreator", fields: [createdById], references: [id])
+  reviewedBy           Lecturer?             @relation("ProgramReviewer", fields: [reviewedById], references: [id])
 
   @@schema("public")
 }
 
 model Course {
   id                String             @id @default(cuid())
-  programId         String
+  programId         String?            // nullable — standalone courses have no program
+  createdById       String?            // lecturer who owns this course
   title             String
   code              String?
   description       String?
@@ -128,18 +149,44 @@ model Course {
   year              Int?
   isMandatory       Boolean            @default(true)
   orderIndex        Int                @default(0)
+  isStandalone      Boolean            @default(false)   // true = independent course
+  isPublished       Boolean            @default(false)
+  localPrice        Decimal?           @db.Decimal(10, 2)
+  foreignPrice      Decimal?           @db.Decimal(10, 2)
   createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   assessments       Assessment[]
-  program           Program            @relation(fields: [programId], references: [id])
+  program           Program?           @relation(fields: [programId], references: [id])
+  createdBy         Lecturer?          @relation("CourseCreator", fields: [createdById], references: [id])
   courseEnrollments CourseEnrollment[]
   courseLecturers   CourseLecturer[]
+  resources         CourseResource[]
+
+  @@schema("public")
+}
+
+model CourseResource {
+  id          String             @id @default(cuid())
+  courseId    String
+  title       String
+  type        CourseResourceType
+  fileUrl     String?
+  externalUrl String?
+  description String?
+  orderIndex  Int                @default(0)
+  isPublished Boolean            @default(true)
+  sizeBytes   Int?
+  mimeType    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@schema("public")
 }
 
 model Lecturer {
-  id                  String               @id @default(cuid())
-  profileId           String               @unique
+  id                  String                 @id @default(cuid())
+  profileId           String                 @unique
   institutionId       String?
   title               String?
   specialization      String[]
@@ -147,18 +194,21 @@ model Lecturer {
   experienceYears     Int?
   bio                 String?
   linkedinUrl         String?
-  isVisiting          Boolean              @default(false)
-  hourlyRate          Decimal?             @db.Decimal(10, 2)
-  isAvailable         Boolean              @default(true)
-  rating              Decimal              @default(0) @db.Decimal(3, 2)
-  totalReviews        Int                  @default(0)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  approvalStatus      String               @default("PENDING")
+  isVisiting          Boolean                @default(false)
+  hourlyRate          Decimal?               @db.Decimal(10, 2)
+  isAvailable         Boolean                @default(true)
+  rating              Decimal                @default(0) @db.Decimal(3, 2)
+  totalReviews        Int                    @default(0)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  approvalStatus      LecturerApprovalStatus @default(PENDING)
   courseLecturers     CourseLecturer[]
   managedInstitutions InstitutionManager[]
-  institution         Institution?         @relation(fields: [institutionId], references: [id])
-  profile             Profile              @relation(fields: [profileId], references: [id])
+  institution         Institution?           @relation(fields: [institutionId], references: [id])
+  profile             Profile                @relation(fields: [profileId], references: [id])
+  createdPrograms     Program[]              @relation("ProgramCreator")
+  reviewedPrograms    Program[]              @relation("ProgramReviewer")
+  createdCourses      Course[]               @relation("CourseCreator")
 
   @@schema("public")
 }
@@ -191,6 +241,7 @@ model Student {
   credentials       Credential[]
   enrollments       Enrollment[]
   jobApplications   JobApplication[]
+  courseEnrollments CourseEnrollment[]
   profile           Profile                @relation(fields: [profileId], references: [id])
 
   @@schema("public")
@@ -224,6 +275,7 @@ model Enrollment {
 model CourseEnrollment {
   id           String                 @id @default(cuid())
   enrollmentId String
+  studentId    String?
   courseId     String
   status       CourseEnrollmentStatus @default(ACTIVE)
   grade        String?
@@ -232,6 +284,7 @@ model CourseEnrollment {
   createdAt    DateTime               @default(now())
   course       Course                 @relation(fields: [courseId], references: [id])
   enrollment   Enrollment             @relation(fields: [enrollmentId], references: [id])
+  student      Student?               @relation(fields: [studentId], references: [id])
 
   @@schema("public")
 }
@@ -247,6 +300,7 @@ model Assessment {
   dueDate       DateTime?
   instructions  String?
   createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
   course        Course                 @relation(fields: [courseId], references: [id])
   submissions   AssessmentSubmission[]
 
@@ -314,18 +368,18 @@ model Credential {
 }
 
 model Employer {
-  id             String       @id @default(cuid())
-  profileId      String       @unique
+  id             String                 @id @default(cuid())
+  profileId      String                 @unique
   companyName    String
   industry       String?
   companySize    String?
   website        String?
   logoUrl        String?
   description    String?
-  isVerified     Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  approvalStatus String       @default("PENDING")
-  profile        Profile      @relation(fields: [profileId], references: [id])
+  isVerified     Boolean                @default(false)
+  createdAt      DateTime               @default(now())
+  approvalStatus EmployerApprovalStatus @default(PENDING)
+  profile        Profile                @relation(fields: [profileId], references: [id])
   jobListings    JobListing[]
 
   @@schema("public")
@@ -446,6 +500,7 @@ enum Role {
   STUDENT
   LECTURER
   EMPLOYER
+  INSTITUTION
   ADMIN
 
   @@schema("public")
@@ -466,6 +521,42 @@ enum InstitutionType {
   TRAINING_INSTITUTE
   PROFESSIONAL_BODY
   CORPORATE_ACADEMY
+
+  @@schema("public")
+}
+
+enum InstitutionApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+
+  @@schema("public")
+}
+
+enum LecturerApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+
+  @@schema("public")
+}
+
+enum EmployerApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+
+  @@schema("public")
+}
+
+enum ProgramApprovalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
 
   @@schema("public")
 }
@@ -703,6 +794,17 @@ enum NotificationType {
   JOB
   SYSTEM
   ANNOUNCEMENT
+
+  @@schema("public")
+}
+
+enum CourseResourceType {
+  PDF
+  VIDEO_UPLOAD
+  VIDEO_LINK
+  IMAGE
+  PRESENTATION
+  EXTERNAL_LINK
 
   @@schema("public")
 }

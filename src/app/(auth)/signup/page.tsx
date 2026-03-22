@@ -4,11 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, GraduationCap, BookOpen, Briefcase, Building2, ChevronRight,
+  ArrowLeft,
+  GraduationCap,
+  BookOpen,
+  Briefcase,
+  Building2,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "~/lib/supabase/client";
 
-type UserRole = "STUDENT" | "LECTURER" | "EMPLOYER" ;
+type UserRole = "STUDENT" | "LECTURER" | "EMPLOYER";
 
 const roles: {
   value: UserRole;
@@ -66,6 +71,7 @@ const inputCls =
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<UserRole>("STUDENT");
   const [otp, setOtp] = useState("");
@@ -79,6 +85,11 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -105,7 +116,11 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: "signup" });
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: "signup",
+      });
       if (error) throw error;
       router.push("/profile-setup");
       router.refresh();
@@ -118,7 +133,6 @@ export default function Signup() {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-
       {/* ── Left panel ── */}
       <div className="hidden w-[420px] flex-shrink-0 flex-col justify-between bg-slate-900 p-10 lg:flex">
         {/* Logo */}
@@ -128,14 +142,16 @@ export default function Signup() {
             {/* <img src="/favicon.ico" alt="iNEXORA" className="h-10 w-36" /> */}
           </div>
           <div>
-            <p className="text-sm font-bold tracking-wide text-white">iNEXORA</p>
+            <p className="text-sm font-bold tracking-wide text-white">
+              iNEXORA
+            </p>
             <p className="text-xs text-slate-400">Digital Education Hub</p>
           </div>
         </div>
 
         {/* Role preview cards */}
         <div className="space-y-3">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          <p className="mb-5 text-xs font-semibold tracking-widest text-slate-500 uppercase">
             Who's joining today?
           </p>
           {roles.map((r) => {
@@ -151,18 +167,28 @@ export default function Signup() {
                     : "border-transparent hover:border-slate-700 hover:bg-slate-800/50"
                 }`}
               >
-                <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
-                  isSelected ? r.bg : "bg-slate-700"
-                }`}>
-                  <Icon className={`h-4 w-4 ${isSelected ? r.color : "text-slate-400"}`} />
+                <div
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
+                    isSelected ? r.bg : "bg-slate-700"
+                  }`}
+                >
+                  <Icon
+                    className={`h-4 w-4 ${isSelected ? r.color : "text-slate-400"}`}
+                  />
                 </div>
                 <div className="min-w-0">
-                  <p className={`text-sm font-semibold ${isSelected ? "text-white" : "text-slate-400"}`}>
+                  <p
+                    className={`text-sm font-semibold ${isSelected ? "text-white" : "text-slate-400"}`}
+                  >
                     {r.label}
                   </p>
-                  <p className="truncate text-xs text-slate-500">{r.description}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {r.description}
+                  </p>
                 </div>
-                {isSelected && <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-slate-400" />}
+                {isSelected && (
+                  <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-slate-400" />
+                )}
               </div>
             );
           })}
@@ -170,21 +196,23 @@ export default function Signup() {
 
         {/* Footer */}
         <p className="text-xs text-slate-600">
-          Sri Lanka's national platform for digital education and career development.
+          Sri Lanka's national platform for digital education and career
+          development.
         </p>
       </div>
 
       {/* ── Right panel ── */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
-
           {/* Mobile logo */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
               <GraduationCap className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold tracking-wide text-slate-900">iNEXORA</p>
+              <p className="text-sm font-bold tracking-wide text-slate-900">
+                iNEXORA
+              </p>
               <p className="text-xs text-slate-500">Digital Education Hub</p>
             </div>
           </div>
@@ -192,7 +220,7 @@ export default function Signup() {
           {/* Back button */}
           <button
             type="button"
-            onClick={() => otpStep ? setOtpStep(false) : router.push("/")}
+            onClick={() => (otpStep ? setOtpStep(false) : router.push("/"))}
             className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -214,7 +242,6 @@ export default function Signup() {
           {/* ── Signup form ── */}
           {!otpStep ? (
             <form onSubmit={handleSubmit} className="space-y-5">
-
               {/* Name + Email */}
               <div className="space-y-3">
                 <input
@@ -242,11 +269,20 @@ export default function Signup() {
                   placeholder="Password (min. 6 characters)"
                   className={inputCls}
                 />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Confirm password"
+                  className={inputCls}
+                />
               </div>
 
               {/* Role selection — mobile only (desktop uses left panel) */}
               <div className="lg:hidden">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
                   I am joining as
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -270,14 +306,20 @@ export default function Signup() {
                           onChange={(e) => setRole(e.target.value as UserRole)}
                           className="sr-only"
                         />
-                        <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${
-                          isSelected ? r.bg : "bg-slate-100"
-                        }`}>
-                          <Icon className={`h-3.5 w-3.5 ${isSelected ? r.color : "text-slate-400"}`} />
+                        <div
+                          className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${
+                            isSelected ? r.bg : "bg-slate-100"
+                          }`}
+                        >
+                          <Icon
+                            className={`h-3.5 w-3.5 ${isSelected ? r.color : "text-slate-400"}`}
+                          />
                         </div>
-                        <span className={`text-xs font-semibold ${
-                          isSelected ? r.selectedText : "text-slate-600"
-                        }`}>
+                        <span
+                          className={`text-xs font-semibold ${
+                            isSelected ? r.selectedText : "text-slate-600"
+                          }`}
+                        >
                           {r.label}
                         </span>
                       </label>
@@ -293,14 +335,22 @@ export default function Signup() {
                   const Icon = r.icon;
                   return (
                     <>
-                      <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${r.bg}`}>
+                      <div
+                        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${r.bg}`}
+                      >
                         <Icon className={`h-4 w-4 ${r.color}`} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-700">Joining as {r.label}</p>
-                        <p className="truncate text-xs text-slate-400">{r.description}</p>
+                        <p className="text-xs font-semibold text-slate-700">
+                          Joining as {r.label}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {r.description}
+                        </p>
                       </div>
-                      <span className="ml-auto text-xs text-slate-400">← change on left</span>
+                      <span className="ml-auto text-xs text-slate-400">
+                        ← change on left
+                      </span>
                     </>
                   );
                 })()}
@@ -319,25 +369,45 @@ export default function Signup() {
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
                     </svg>
                     Creating account…
                   </span>
                 ) : (
-                  <>Create account<ChevronRight className="h-4 w-4" /></>
+                  <>
+                    Create account
+                    <ChevronRight className="h-4 w-4" />
+                  </>
                 )}
               </button>
 
               <p className="text-center text-sm text-slate-500">
                 Already have an account?{" "}
-                <Link href="/login" className="font-semibold text-blue-600 hover:underline">
+                <Link
+                  href="/login"
+                  className="font-semibold text-blue-600 hover:underline"
+                >
                   Sign in
                 </Link>
               </p>
             </form>
-
           ) : (
             /* ── OTP form ── */
             <form onSubmit={handleVerifyOtp} className="space-y-5">
@@ -348,7 +418,7 @@ export default function Signup() {
                 required
                 placeholder="000000"
                 maxLength={6}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-slate-900 transition outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
               />
 
               {error && (
@@ -364,14 +434,32 @@ export default function Signup() {
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
                     </svg>
                     Verifying…
                   </span>
                 ) : (
-                  <>Verify email<ChevronRight className="h-4 w-4" /></>
+                  <>
+                    Verify email
+                    <ChevronRight className="h-4 w-4" />
+                  </>
                 )}
               </button>
 

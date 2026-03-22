@@ -1,0 +1,417 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import {
+  createTRPCRouter,
+  lecturerProcedure,
+  managerProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
+
+// ── Validation schemas ─────────────────────────────────────────────────────
+
+const programInput = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  slug: z.string().optional(),
+  type: z.enum([
+    "FOUNDATION", "DIPLOMA", "CERTIFICATE", "BACHELOR", "MASTER",
+    "PHD", "PROFESSIONAL", "MICROCREDENTIAL", "SHORT_COURSE",
+  ]),
+  level: z.enum(["ENTRY", "UNDERGRADUATE", "POSTGRADUATE", "RESEARCH"]),
+  field: z.enum([
+    "ENGINEERING", "INFORMATION_TECHNOLOGY", "BUSINESS_MANAGEMENT",
+    "ACCOUNTING_FINANCE", "MEDICINE", "HEALTHCARE", "NURSING", "PHARMACY",
+    "BIO_TECHNOLOGY", "AGRICULTURE", "ENVIRONMENTAL_SCIENCE", "LAW",
+    "PSYCHOLOGY", "SOCIAL_SCIENCE", "EDUCATION", "ARTS", "ARCHITECTURE",
+    "MEDIA_COMMUNICATION", "JOURNALISM", "LOGISTICS", "TOURISM_HOSPITALITY",
+    "MARITIME", "FASHION_DESIGN", "INTERIOR_DESIGN", "GRAPHIC_DESIGN",
+    "MUSIC", "PERFORMING_ARTS", "SPORTS_SCIENCE", "POLITICAL_SCIENCE",
+    "ECONOMICS", "MATHEMATICS", "PHYSICS", "CHEMISTRY", "DATA_SCIENCE",
+    "ARTIFICIAL_INTELLIGENCE", "CYBER_SECURITY", "OTHER",
+  ]),
+  durationMonths: z.number().int().positive().optional().nullable(),
+  deliveryMode: z.enum(["ONLINE", "ON_CAMPUS", "HYBRID", "BLENDED"]),
+  language: z.array(z.string()).min(1, "At least one language required"),
+  description: z.string().optional().nullable(),
+  entryRequirements: z.string().optional().nullable(),
+  careerOutcomes: z.string().optional().nullable(),
+  creditPoints: z.number().int().positive().optional().nullable(),
+  creditFramework: z.string().optional().nullable(),
+  localPrice: z.number().positive().optional().nullable(),
+  foreignPrice: z.number().positive().optional().nullable(),
+  scholarshipAvailable: z.boolean().default(false),
+});
+
+// ── Completeness check ─────────────────────────────────────────────────────
+// A program is "complete" if all key fields are filled in.
+// Complete programs are auto-approved; incomplete ones go to manager review.
+
+function isProgramComplete(data: z.infer<typeof programInput>): boolean {
+  return !!(
+    data.title?.trim() &&
+    data.type &&
+    data.level &&
+    data.field &&
+    data.deliveryMode &&
+    data.language.length > 0 &&
+    data.description?.trim() &&
+    data.durationMonths
+  );
+}
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+// ── Router ─────────────────────────────────────────────────────────────────
+
+export const programRouter = createTRPCRouter({
+
+  // ── GET: my programs (scoped by role) ─────────────────────────────────────
+  // - Plain lecturer: only their own created programs
+  // - Managing lecturer: all programs in their institution
+  getMyPrograms: lecturerProcedure.query(async ({ ctx }) => {
+    const { db, lecturer } = ctx;
+
+    // Check if this lecturer is a manager
+    const managerEntry = lecturer.managedInstitutions.find(
+      (m) => m.canManagePrograms,
+    );
+
+    if (managerEntry) {
+      // Manager: return ALL programs in institution
+      return db.program.findMany({
+        where: {
+          institutionId: managerEntry.institutionId,
+          isActive: true,
+        },
+        include: {
+          createdBy: {
+            include: { profile: { select: { fullName: true, email: true } } },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    // Plain lecturer: return only their own programs
+    return db.program.findMany({
+      where: {
+        createdById: lecturer.id,
+        isActive: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  // ── GET: institution programs for module creation ─────────────────────────
+  getInstitutionPrograms: lecturerProcedure.query(async ({ ctx }) => {
+    const { db, lecturer } = ctx;
+  
+    if (!lecturer.institutionId) return [];
+  
+    return db.program.findMany({
+      where: {
+        institutionId: lecturer.institutionId,
+        approvalStatus: "APPROVED",
+        isActive: true,
+      },
+      select: { id: true, title: true, type: true },
+      orderBy: { title: "asc" },
+    });
+  }),
+
+  // ── GET: programs pending review (managers only) ───────────────────────────
+  getPendingReview: managerProcedure.query(async ({ ctx }) => {
+    return ctx.db.program.findMany({
+      where: {
+        institutionId: ctx.managerEntry.institutionId,
+        approvalStatus: "PENDING",
+        isActive: true,
+      },
+      include: {
+        createdBy: {
+          include: { profile: { select: { fullName: true, email: true } } },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  }),
+
+  // ── CREATE: any approved lecturer can create a program ────────────────────
+  create: lecturerProcedure
+    .input(programInput)
+    .mutation(async ({ ctx, input }) => {
+      const { db, lecturer } = ctx;
+
+      // Lecturer must belong to an institution
+      if (!lecturer.institutionId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You must be associated with an institution to create programs",
+        });
+      }
+
+      const slug = input.slug?.trim() || generateSlug(input.title);
+
+      // Check slug uniqueness
+      const existing = await db.program.findUnique({ where: { slug } });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A program with this slug already exists. Please use a different title.",
+        });
+      }
+
+      // Determine approval status based on completeness
+      const complete = isProgramComplete(input);
+
+      // Check if creator is also a manager (auto-approve their own programs)
+      const isManager = lecturer.managedInstitutions.some(
+        (m) => m.canManagePrograms && m.institutionId === lecturer.institutionId,
+      );
+
+      const approvalStatus = isManager || complete ? "APPROVED" : "PENDING";
+
+      const program = await db.program.create({
+        data: {
+          ...input,
+          slug,
+          institutionId: lecturer.institutionId,
+          createdById: lecturer.id,
+          approvalStatus,
+          isPublished: false, // never auto-publish on create
+        },
+      });
+
+      // Notify institution managers if pending review
+      if (approvalStatus === "PENDING") {
+        const managers = await db.institutionManager.findMany({
+          where: {
+            institutionId: lecturer.institutionId,
+            canManagePrograms: true,
+          },
+          include: { lecturer: { include: { profile: true } } },
+        });
+
+        // Create in-app notifications for all managers
+        await db.notification.createMany({
+          data: managers.map((m) => ({
+            profileId: m.lecturer.profileId,
+            title: "New Program Pending Review",
+            message: `"${program.title}" has been submitted for review.`,
+            type: "SYSTEM" as const,
+            link: `/dashboard?tab=institution&review=${program.id}`,
+          })),
+        });
+      }
+
+      return { program, approvalStatus };
+    }),
+
+  // ── UPDATE: creator can edit their own; manager can edit any in their org ──
+  update: lecturerProcedure
+    .input(z.object({ id: z.string(), data: programInput }))
+    .mutation(async ({ ctx, input }) => {
+      const { db, lecturer } = ctx;
+
+      const program = await db.program.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!program || !program.isActive) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+
+      // Authorization: must be creator OR manager of this institution
+      const isCreator = program.createdById === lecturer.id;
+      const isManager = lecturer.managedInstitutions.some(
+        (m) => m.canManagePrograms && m.institutionId === program.institutionId,
+      );
+
+      if (!isCreator && !isManager) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only edit programs you created",
+        });
+      }
+
+      // If a plain lecturer edits a previously approved program,
+      // reset it to PENDING for re-review
+      const newApprovalStatus =
+        isManager
+          ? program.approvalStatus // managers editing don't change status
+          : isProgramComplete(input.data)
+          ? "PENDING" // re-submit for review after edit
+          : "DRAFT";
+
+      return db.program.update({
+        where: { id: input.id },
+        data: {
+          ...input.data,
+          approvalStatus: newApprovalStatus,
+        },
+      });
+    }),
+
+  // ── TOGGLE PUBLISH: managers only ─────────────────────────────────────────
+  togglePublish: managerProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const program = await ctx.db.program.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!program || program.institutionId !== ctx.managerEntry.institutionId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+
+      // Can only publish approved programs
+      if (!program.isPublished && program.approvalStatus !== "APPROVED") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only approved programs can be published",
+        });
+      }
+
+      return ctx.db.program.update({
+        where: { id: input.id },
+        data: { isPublished: !program.isPublished },
+      });
+    }),
+
+  // ── APPROVE: managers only ────────────────────────────────────────────────
+  approve: managerProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const program = await ctx.db.program.findUnique({
+        where: { id: input.id },
+        include: { createdBy: { include: { profile: true } } },
+      });
+
+      if (!program || program.institutionId !== ctx.managerEntry.institutionId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+
+      const updated = await ctx.db.program.update({
+        where: { id: input.id },
+        data: {
+          approvalStatus: "APPROVED",
+          reviewedById: ctx.lecturer.id,
+          reviewedAt: new Date(),
+          reviewNote: null,
+        },
+      });
+
+      // Notify the creator
+      if (program.createdBy?.profileId) {
+        await ctx.db.notification.create({
+          data: {
+            profileId: program.createdBy.profileId,
+            title: "Program Approved ✅",
+            message: `Your program "${program.title}" has been approved.`,
+            type: "SYSTEM",
+            link: `/dashboard`,
+          },
+        });
+      }
+
+      return updated;
+    }),
+
+  // ── REQUEST CHANGES: managers only ────────────────────────────────────────
+  requestChanges: managerProcedure
+    .input(z.object({ id: z.string(), note: z.string().min(10, "Please provide detailed feedback") }))
+    .mutation(async ({ ctx, input }) => {
+      const program = await ctx.db.program.findUnique({
+        where: { id: input.id },
+        include: { createdBy: { include: { profile: true } } },
+      });
+
+      if (!program || program.institutionId !== ctx.managerEntry.institutionId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+
+      const updated = await ctx.db.program.update({
+        where: { id: input.id },
+        data: {
+          approvalStatus: "CHANGES_REQUESTED",
+          reviewedById: ctx.lecturer.id,
+          reviewedAt: new Date(),
+          reviewNote: input.note,
+        },
+      });
+
+      // Notify the creator with the feedback
+      if (program.createdBy?.profileId) {
+        await ctx.db.notification.create({
+          data: {
+            profileId: program.createdBy.profileId,
+            title: "Changes Requested for Your Program",
+            message: `"${program.title}": ${input.note}`,
+            type: "SYSTEM",
+            link: `/dashboard`,
+          },
+        });
+      }
+
+      return updated;
+    }),
+
+  // ── DELETE: soft delete — creator or manager ───────────────────────────────
+  delete: lecturerProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { db, lecturer } = ctx;
+
+      const program = await db.program.findUnique({ where: { id: input.id } });
+
+      if (!program || !program.isActive) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+
+      const isCreator = program.createdById === lecturer.id;
+      const isManager = lecturer.managedInstitutions.some(
+        (m) => m.canManagePrograms && m.institutionId === program.institutionId,
+      );
+
+      if (!isCreator && !isManager) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have permission to delete this program",
+        });
+      }
+
+      // Soft delete — preserves data integrity (enrollments, credentials etc.)
+      return db.program.update({
+        where: { id: input.id },
+        data: { isActive: false, isPublished: false },
+      });
+    }),
+
+  // ── GET: institution stats (managers only) ────────────────────────────────
+  getInstitutionStats: managerProcedure.query(async ({ ctx }) => {
+    const institutionId = ctx.managerEntry.institutionId;
+
+    const [totalPrograms, publishedPrograms, pendingPrograms, totalLecturers, totalEnrollments] =
+      await Promise.all([
+        ctx.db.program.count({ where: { institutionId, isActive: true } }),
+        ctx.db.program.count({ where: { institutionId, isActive: true, isPublished: true } }),
+        ctx.db.program.count({ where: { institutionId, isActive: true, approvalStatus: "PENDING" } }),
+        ctx.db.lecturer.count({ where: { institutionId, approvalStatus: "APPROVED" } }),
+        ctx.db.enrollment.count({
+          where: { program: { institutionId } },
+        }),
+      ]);
+
+    return {
+      totalPrograms,
+      publishedPrograms,
+      pendingPrograms,
+      totalLecturers,
+      totalEnrollments,
+    };
+  }),
+});

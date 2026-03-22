@@ -40,40 +40,18 @@ export async function reactivateUser(id: string) {
 }
 
 export async function deleteUser(id: string) {
-  console.log("deleteUser called with id:", id);
   const supabase = createAdminClient();
 
-  const { data: students } = await supabase
-    .from("Student")
-    .select("id")
-    .eq("profileId", id);
-  const { data: lecturers } = await supabase
-    .from("Lecturer")
-    .select("id")
-    .eq("profileId", id);
-  const { data: employers } = await supabase
-    .from("Employer")
-    .select("id")
-    .eq("profileId", id);
+  const { data: students } = await supabase.from("Student").select("id").eq("profileId", id);
+  const { data: lecturers } = await supabase.from("Lecturer").select("id").eq("profileId", id);
+  const { data: employers } = await supabase.from("Employer").select("id").eq("profileId", id);
 
   const student = students?.[0] ?? null;
   const lecturer = lecturers?.[0] ?? null;
   const employer = employers?.[0] ?? null;
 
-  console.log(
-    "student:",
-    student,
-    "lecturer:",
-    lecturer,
-    "employer:",
-    employer,
-  );
-
   if (student) {
-    await supabase
-      .from("AssessmentSubmission")
-      .delete()
-      .eq("studentId", student.id);
+    await supabase.from("AssessmentSubmission").delete().eq("studentId", student.id);
     await supabase.from("JobApplication").delete().eq("studentId", student.id);
 
     const { data: enrollments } = await supabase
@@ -83,14 +61,8 @@ export async function deleteUser(id: string) {
 
     if (enrollments && enrollments.length > 0) {
       const enrollmentIds = enrollments.map((e) => e.id);
-      await supabase
-        .from("CourseEnrollment")
-        .delete()
-        .in("enrollmentId", enrollmentIds);
-      await supabase
-        .from("Credential")
-        .delete()
-        .in("enrollmentId", enrollmentIds);
+      await supabase.from("CourseEnrollment").delete().in("enrollmentId", enrollmentIds);
+      await supabase.from("Credential").delete().in("enrollmentId", enrollmentIds);
       await supabase.from("Payment").delete().in("enrollmentId", enrollmentIds);
       await supabase.from("Enrollment").delete().eq("studentId", student.id);
     }
@@ -100,14 +72,8 @@ export async function deleteUser(id: string) {
   }
 
   if (lecturer) {
-    await supabase
-      .from("InstitutionManager")
-      .delete()
-      .eq("lecturerId", lecturer.id);
-    await supabase
-      .from("CourseLecturer")
-      .delete()
-      .eq("lecturerId", lecturer.id);
+    await supabase.from("InstitutionManager").delete().eq("lecturerId", lecturer.id);
+    await supabase.from("CourseLecturer").delete().eq("lecturerId", lecturer.id);
     await supabase.from("Lecturer").delete().eq("profileId", id);
   }
 
@@ -130,16 +96,10 @@ export async function deleteUser(id: string) {
   await supabase.from("Subscription").delete().eq("profileId", id);
   await supabase.from("Payment").delete().eq("profileId", id);
   await supabase.from("Announcement").delete().eq("publishedBy", id);
-
-  console.log("Reached Profile delete");
-  const { error: profileError } = await supabase
-    .from("Profile")
-    .delete()
-    .eq("id", id);
-  console.log("Profile delete:", profileError?.message ?? "ok");
+  await supabase.from("InstitutionAccount").delete().eq("profileId", id);
+  await supabase.from("Profile").delete().eq("id", id);
 
   const { error: authError } = await supabase.auth.admin.deleteUser(id);
-  console.log("Auth delete:", authError?.message ?? "ok");
   if (authError && !authError.message.includes("User not found")) {
     throw new Error(authError.message);
   }
@@ -152,7 +112,6 @@ export async function deleteUser(id: string) {
 export async function approveLecturer(id: string) {
   const supabase = createAdminClient();
 
-  // Get profileId from Lecturer row
   const { data: lec, error: fetchError } = await supabase
     .from("Lecturer")
     .select("profileId")
@@ -160,14 +119,12 @@ export async function approveLecturer(id: string) {
     .single();
   if (fetchError) throw new Error(fetchError.message);
 
-  // Activate the Profile
   const { error: profileError } = await supabase
     .from("Profile")
     .update({ isActive: true, isVerified: true })
     .eq("id", lec.profileId);
   if (profileError) throw new Error(profileError.message);
 
-  // Approve the Lecturer
   const { error } = await supabase
     .from("Lecturer")
     .update({ approvalStatus: "APPROVED" })
@@ -211,18 +168,10 @@ export async function rejectInstitution(id: string) {
 
 export async function suspendInstitution(id: string) {
   const supabase = createAdminClient();
-
-  console.log("Suspending institution id:", id);
-
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("Institution")
     .update({ isActive: false })
-    .eq("id", id)
-    .select();
-
-  console.log("Affected rows:", data);
-  console.log("Error:", error);
-
+    .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }
@@ -239,7 +188,6 @@ export async function reactivateInstitution(id: string) {
 
 export async function deleteInstitution(id: string) {
   const supabase = createAdminClient();
-  // CASCADE on FK handles InstitutionManager rows
   const { error } = await supabase.from("Institution").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
@@ -249,6 +197,7 @@ export async function createInstitution(data: {
   name: string;
   type: string;
   country: string;
+  email?: string;
   city?: string;
   website?: string;
   description?: string;
@@ -258,11 +207,10 @@ export async function createInstitution(data: {
   const baseSlug = data.name
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, "") // strip special chars
-    .replace(/\s+/g, "-") // spaces → hyphens
-    .replace(/-+/g, "-"); // collapse multiple hyphens
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
 
-  // Append a short random suffix to avoid collisions
   const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
 
   const { data: newInst, error } = await supabase
@@ -274,6 +222,7 @@ export async function createInstitution(data: {
       type: data.type,
       country: data.country,
       city: data.city ?? null,
+      email: data.email ?? null,
       website: data.website ?? null,
       description: data.description ?? null,
       isActive: true,
@@ -286,7 +235,6 @@ export async function createInstitution(data: {
     .single();
 
   if (error) throw new Error(error.message);
-  // revalidatePath("/admin");
   return newInst;
 }
 
@@ -297,6 +245,7 @@ export async function updateInstitution(
     type?: string;
     country?: string;
     city?: string;
+    email?: string;
     website?: string;
     description?: string;
   },
@@ -307,6 +256,127 @@ export async function updateInstitution(
     .update({ ...data, updatedAt: new Date().toISOString() })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+export async function createInstitutionAccount(institutionId: string) {
+  const supabase = createAdminClient();
+
+  const { data: institution, error: instError } = await supabase
+    .from("Institution")
+    .select("id, name, email")
+    .eq("id", institutionId)
+    .single();
+
+  if (instError || !institution) throw new Error("Institution not found");
+  if (!institution.email) throw new Error("Institution has no email address set");
+
+  const { data: existing } = await supabase
+    .from("InstitutionAccount")
+    .select("id")
+    .eq("institutionId", institutionId)
+    .maybeSingle();
+
+  if (existing) throw new Error("Account already exists for this institution");
+
+  let userId: string;
+
+  const { data: { users } } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+
+  const existingAuthUser = users?.find((u) => u.email === institution.email) ?? null;
+
+  if (existingAuthUser) {
+    userId = existingAuthUser.id;
+    if (!userId) throw new Error("Existing auth user has no id");
+    await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { full_name: institution.name, role: "INSTITUTION" },
+    });
+  } else {
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: institution.email,
+      email_confirm: true,
+      user_metadata: { full_name: institution.name, role: "INSTITUTION" },
+    });
+    if (authError) throw new Error(authError.message);
+    if (!authData.user?.id) throw new Error("Auth user creation returned no id");
+    userId = authData.user.id;
+  }
+
+  const { data: existingProfile } = await supabase
+    .from("Profile")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (existingProfile) {
+    await supabase.from("Profile").update({
+      isActive: true,
+      isVerified: true,
+      fullName: institution.name,
+      role: "INSTITUTION",
+    }).eq("id", userId);
+  } else {
+    const { error: profileCreateError } = await supabase.from("Profile").insert({
+      id: userId,
+      email: institution.email,
+      fullName: institution.name,
+      role: "INSTITUTION",
+      isActive: true,
+      isVerified: true,
+      is_admin: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    if (profileCreateError) throw new Error(profileCreateError.message);
+  }
+
+  const { error: accError } = await supabase
+    .from("InstitutionAccount")
+    .insert({
+      id: crypto.randomUUID(),
+      profileId: userId,
+      institutionId: institutionId,
+    });
+
+  if (accError) throw new Error(accError.message);
+
+  // Generate recovery link for admin to share manually
+  const { data: linkData, error: resetError } = await supabase.auth.admin.generateLink({
+    type: "recovery",
+    email: institution.email,
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  });
+
+  if (resetError) throw new Error(resetError.message);
+
+  revalidatePath("/admin");
+  return { link: linkData.properties?.action_link };
+}
+
+export async function deleteInstitutionAccount(institutionId: string) {
+  const supabase = createAdminClient();
+
+  const { data: account } = await supabase
+    .from("InstitutionAccount")
+    .select("profileId")
+    .eq("institutionId", institutionId)
+    .maybeSingle();
+
+  if (!account) throw new Error("No account found for this institution");
+
+  await supabase.from("InstitutionAccount").delete().eq("institutionId", institutionId);
+  await supabase.from("Profile").delete().eq("id", account.profileId);
+
+  const { error: authError } = await supabase.auth.admin.deleteUser(account.profileId);
+  if (authError && !authError.message.includes("User not found")) {
+    throw new Error(authError.message);
+  }
+
   revalidatePath("/admin");
 }
 
@@ -322,14 +392,12 @@ export async function approveEmployer(id: string) {
     .single();
   if (fetchError) throw new Error(fetchError.message);
 
-  // Activate the Profile
   const { error: profileError } = await supabase
     .from("Profile")
     .update({ isActive: true, isVerified: true })
     .eq("id", emp.profileId);
   if (profileError) throw new Error(profileError.message);
 
-  // Approve the Employer
   const { error } = await supabase
     .from("Employer")
     .update({ isVerified: true, approvalStatus: "APPROVED" })

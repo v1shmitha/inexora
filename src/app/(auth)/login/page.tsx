@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { createClient } from "~/lib/supabase/client";
 
 export default function Login() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
@@ -21,28 +23,19 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-
-      const { data: profile } = await supabase
-        .from("Profile")
-        .select("role")
-        .eq("id", data.user.id)
-        .single();
-
-      if (profile?.role === "ADMIN") {
-        router.push("/admin");
-      } else {
-        router.push("/dashboard");
-      }
-      // router.refresh();
+    
+      // Wait for session to be confirmed
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session not established");
+    
+      window.location.href = "/auth/redirect";
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Invalid email or password",
-      );
+      setError(err instanceof Error ? err.message : "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -51,7 +44,6 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 px-4">
       <div className="relative w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        {/* Back to Home */}
         <button
           type="button"
           onClick={() => router.push("/")}
@@ -60,21 +52,20 @@ export default function Login() {
           <ArrowLeftIcon className="h-5 w-5" />
         </button>
 
-        {/* Header */}
         <div className="mb-8 text-center">
-          <h2 className="mb-2 text-3xl font-bold text-gray-900">
-            Welcome Back
-          </h2>
+          <h2 className="mb-2 text-3xl font-bold text-gray-900">Welcome Back</h2>
           <p className="text-gray-600">Sign in to access your dashboard</p>
         </div>
 
-        {/* Form */}
+        {message && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {message}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">
               Email Address
             </label>
             <input
@@ -89,10 +80,7 @@ export default function Login() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">
               Password
             </label>
             <input
@@ -121,14 +109,10 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Don&apos;t have an account?{" "}
-            <Link
-              href="/signup"
-              className="font-semibold text-blue-600 hover:text-blue-700"
-            >
+            <Link href="/signup" className="font-semibold text-blue-600 hover:text-blue-700">
               Sign up
             </Link>
           </p>

@@ -29,7 +29,7 @@ export default function ApprovalStatusBanner({ status, role }: Props) {
           <p className="font-semibold text-amber-800">Your {roleLabels[role]} account is pending approval</p>
           <p className="mt-0.5 text-sm text-amber-700">
             Our team is reviewing your application. You'll have full access once approved.
-            This usually takes 1–2 business days.
+            This usually takes 1–2 hours.
           </p>
         </div>
       </div>

@@ -35,6 +35,7 @@ import {
   ToggleRight,
   ArrowLeft,
   Calendar,
+  Mail,
 } from "lucide-react";
 import { createClient } from "~/lib/supabase/client";
 import {
@@ -61,6 +62,8 @@ import {
   updateManagerPermissions,
   reApproveLecturer,
   reApproveEmployer,
+  createInstitutionAccount,
+  deleteInstitutionAccount,
 } from "../actions";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -147,10 +150,6 @@ interface ApprovedLecturer {
   profile: { fullName: string | null; email: string | null }[] | null;
 }
 
-// Matches the nested query in page.tsx:
-// managers: InstitutionManager(id, canEditProfile, canManagePrograms,
-//   canViewAnalytics, canPostAnnouncements, assignedAt,
-//   lecturer: Lecturer(id, title, profile: Profile(fullName, email)))
 interface ManagerRecord {
   id: string;
   canEditProfile: boolean;
@@ -172,16 +171,19 @@ interface ApprovedInstitution {
   name: string;
   type: string | null;
   country: string | null;
+  email: string | null;
   isActive: boolean;
   isVerified: boolean;
   createdAt: string;
   managers: ManagerRecord[] | null;
+  account: { id: string }[] | null;
 }
 
 interface InstFormValues {
   name: string;
   type: string;
   country: string;
+  email: string;
   website: string;
   description: string;
 }
@@ -197,6 +199,7 @@ const BLANK_FORM: InstFormValues = {
   name: "",
   type: "",
   country: "",
+  email: "",
   website: "",
   description: "",
 };
@@ -289,9 +292,7 @@ function PermToggle({
       }`}
     >
       <div>
-        <p
-          className={`text-sm font-semibold ${value ? "text-blue-900" : "text-slate-700"}`}
-        >
+        <p className={`text-sm font-semibold ${value ? "text-blue-900" : "text-slate-700"}`}>
           {label}
         </p>
         <p className="mt-0.5 text-xs text-slate-500">{description}</p>
@@ -343,9 +344,6 @@ function EmptyApproval({ label }: { label: string }) {
   );
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────────
-// Supabase returns many-to-one joins as objects, one-to-many as arrays.
-// This handles both cases safely.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getProfile = (
   profile: any,
@@ -375,7 +373,6 @@ export default function AdminDashboard({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Filter state
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("ALL");
   const [instSearch, setInstSearch] = useState("");
@@ -385,41 +382,23 @@ export default function AdminDashboard({
   const [jobSearch, setJobSearch] = useState("");
   const [jobFilter, setJobFilter] = useState("ALL");
 
-  // Optimistic data
   const [users, setUsers] = useState<RecentUser[]>(allUsers);
   const [programs, setPrograms] = useState<AdminProgram[]>(allPrograms);
   const [jobs, setJobs] = useState<AdminJob[]>(allJobs);
-  const [pendingInst, setPendingInst] =
-    useState<PendingInstitution[]>(pendingInstitutions);
-  const [approvedInst, setApprovedInst] =
-    useState<ApprovedInstitution[]>(allInstitutions);
-  const [lecturers, setLecturers] =
-    useState<PendingLecturer[]>(pendingLecturers);
-  const [employers, setEmployers] =
-    useState<PendingEmployer[]>(pendingEmployers);
+  const [pendingInst, setPendingInst] = useState<PendingInstitution[]>(pendingInstitutions);
+  const [approvedInst, setApprovedInst] = useState<ApprovedInstitution[]>(allInstitutions);
+  const [lecturers, setLecturers] = useState<PendingLecturer[]>(pendingLecturers);
+  const [employers, setEmployers] = useState<PendingEmployer[]>(pendingEmployers);
+  const [rejectedLecturers, setRejectedLecturers] = useState<RejectedLecturer[]>(initialRejectedLecturers);
+  const [rejectedEmployers, setRejectedEmployers] = useState<RejectedEmployer[]>(initialRejectedEmployers);
 
-  const [rejectedLecturers, setRejectedLecturers] = useState<
-    RejectedLecturer[]
-  >(initialRejectedLecturers);
-  const [rejectedEmployers, setRejectedEmployers] = useState<
-    RejectedEmployer[]
-  >(initialRejectedEmployers);
-
-  // Institution CRUD modal
-  const [instModal, setInstModal] = useState<"closed" | "create" | "edit">(
-    "closed",
-  );
-  const [editingInst, setEditingInst] = useState<ApprovedInstitution | null>(
-    null,
-  );
+  const [instModal, setInstModal] = useState<"closed" | "create" | "edit">("closed");
+  const [editingInst, setEditingInst] = useState<ApprovedInstitution | null>(null);
   const [instForm, setInstForm] = useState<InstFormValues>(BLANK_FORM);
   const [instFormLoading, setInstFormLoading] = useState(false);
   const [instFormError, setInstFormError] = useState<string | null>(null);
 
-  // Manager panel
-  const [managerPanel, setManagerPanel] = useState<ApprovedInstitution | null>(
-    null,
-  );
+  const [managerPanel, setManagerPanel] = useState<ApprovedInstitution | null>(null);
   const [lecturerSearch, setLecturerSearch] = useState("");
   const [perms, setPerms] = useState<ManagerPerms>(DEFAULT_PERMS);
   const [managerLoading, setManagerLoading] = useState(false);
@@ -462,22 +441,18 @@ export default function AdminDashboard({
     run(
       id,
       () => (isActive ? suspendUser(id) : reactivateUser(id)),
-      () =>
-        setUsers((p) =>
-          p.map((u) => (u.id === id ? { ...u, isActive: !isActive } : u)),
-        ),
+      () => setUsers((p) => p.map((u) => (u.id === id ? { ...u, isActive: !isActive } : u))),
     );
 
   const handleDeleteUser = async (id: string) => {
-    if (!confirm("Permanently delete this user? This cannot be undone."))
-      return;
+    if (!confirm("Permanently delete this user? This cannot be undone.")) return;
     run(
       `del-${id}`,
       () => deleteUser(id),
       () => {
         setUsers((p) => p.filter((u) => u.id !== id));
-        setRejectedLecturers((p) => p.filter((l) => l.profileId !== id)); // ← add
-        setRejectedEmployers((p) => p.filter((e) => e.profileId !== id)); // ← add
+        setRejectedLecturers((p) => p.filter((l) => l.profileId !== id));
+        setRejectedEmployers((p) => p.filter((e) => e.profileId !== id));
       },
     );
   };
@@ -486,15 +461,11 @@ export default function AdminDashboard({
     run(
       id,
       () => (isActive ? suspendInstitution(id) : reactivateInstitution(id)),
-      () =>
-        setApprovedInst((p) =>
-          p.map((i) => (i.id === id ? { ...i, isActive: !isActive } : i)),
-        ),
+      () => setApprovedInst((p) => p.map((i) => (i.id === id ? { ...i, isActive: !isActive } : i))),
     );
 
   const handleDeleteInst = async (id: string) => {
-    if (!confirm("Permanently delete this institution? This cannot be undone."))
-      return;
+    if (!confirm("Permanently delete this institution? This cannot be undone.")) return;
     run(
       `del-inst-${id}`,
       () => deleteInstitution(id),
@@ -503,91 +474,75 @@ export default function AdminDashboard({
   };
 
   const handleApproveInst = (id: string) =>
-    run(
-      id,
-      () => approveInstitution(id),
-      () => setPendingInst((p) => p.filter((i) => i.id !== id)),
-    );
+    run(id, () => approveInstitution(id), () => setPendingInst((p) => p.filter((i) => i.id !== id)));
   const handleRejectInst = (id: string) =>
-    run(
-      id,
-      () => rejectInstitution(id),
-      () => setPendingInst((p) => p.filter((i) => i.id !== id)),
-    );
+    run(id, () => rejectInstitution(id), () => setPendingInst((p) => p.filter((i) => i.id !== id)));
   const handleApproveLecturer = (id: string) =>
-    run(
-      id,
-      () => approveLecturer(id),
-      () => setLecturers((p) => p.filter((l) => l.id !== id)),
-    );
+    run(id, () => approveLecturer(id), () => setLecturers((p) => p.filter((l) => l.id !== id)));
   const handleRejectLecturer = (id: string) =>
-    run(
-      id,
-      () => rejectLecturer(id),
-      () => setLecturers((p) => p.filter((l) => l.id !== id)),
-    );
+    run(id, () => rejectLecturer(id), () => setLecturers((p) => p.filter((l) => l.id !== id)));
   const handleApproveEmployer = (id: string) =>
-    run(
-      id,
-      () => approveEmployer(id),
-      () => setEmployers((p) => p.filter((e) => e.id !== id)),
-    );
+    run(id, () => approveEmployer(id), () => setEmployers((p) => p.filter((e) => e.id !== id)));
   const handleRejectEmployer = (id: string) =>
-    run(
-      id,
-      () => rejectEmployer(id),
-      () => setEmployers((p) => p.filter((e) => e.id !== id)),
-    );
-
-  // ── Re-approve rejected ──────────────────────────────────────────────────
+    run(id, () => rejectEmployer(id), () => setEmployers((p) => p.filter((e) => e.id !== id)));
 
   const handleReApproveLecturer = (id: string) =>
-    run(
-      id,
-      () => reApproveLecturer(id),
-      () => setRejectedLecturers((p) => p.filter((l) => l.id !== id)),
-    );
-
+    run(id, () => reApproveLecturer(id), () => setRejectedLecturers((p) => p.filter((l) => l.id !== id)));
   const handleReApproveEmployer = (id: string) =>
-    run(
-      id,
-      () => reApproveEmployer(id),
-      () => setRejectedEmployers((p) => p.filter((e) => e.id !== id)),
-    );
+    run(id, () => reApproveEmployer(id), () => setRejectedEmployers((p) => p.filter((e) => e.id !== id)));
 
   const handleToggleProgram = (id: string, current: boolean) =>
     run(
       id,
       () => toggleProgram(id, current),
-      () =>
-        setPrograms((p) =>
-          p.map((pr) => (pr.id === id ? { ...pr, isPublished: !current } : pr)),
-        ),
+      () => setPrograms((p) => p.map((pr) => (pr.id === id ? { ...pr, isPublished: !current } : pr))),
     );
   const handleDeleteProgram = async (id: string) => {
     if (!confirm("Delete this program?")) return;
-    run(
-      id,
-      () => deleteProgram(id),
-      () => setPrograms((p) => p.filter((pr) => pr.id !== id)),
-    );
+    run(id, () => deleteProgram(id), () => setPrograms((p) => p.filter((pr) => pr.id !== id)));
   };
 
   const handleToggleJob = (id: string, current: boolean) =>
     run(
       id,
       () => toggleJob(id, current),
-      () =>
-        setJobs((p) =>
-          p.map((j) => (j.id === id ? { ...j, isActive: !current } : j)),
-        ),
+      () => setJobs((p) => p.map((j) => (j.id === id ? { ...j, isActive: !current } : j))),
     );
   const handleDeleteJob = async (id: string) => {
     if (!confirm("Delete this job listing?")) return;
+    run(id, () => deleteJob(id), () => setJobs((p) => p.filter((j) => j.id !== id)));
+  };
+
+  // ── Institution account actions ───────────────────────────────────────────
+
+  const handleCreateInstitutionAccount = async (institutionId: string) => {
+    setLoadingId(`inst-acc-${institutionId}`);
+    setErrorMsg(null);
+    try {
+      const result = await createInstitutionAccount(institutionId);
+      setApprovedInst((p) =>
+        p.map((i) => i.id === institutionId ? { ...i, account: [{ id: "pending" }] } : i),
+      );
+      if (result?.link) {
+        // Copy to clipboard and alert
+        await navigator.clipboard.writeText(result.link);
+        alert(`Account created! Reset link copied to clipboard:\n\n${result.link}`);
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleDeleteInstitutionAccount = async (institutionId: string) => {
+    if (!confirm("Delete this institution's account? They will lose access.")) return;
     run(
-      id,
-      () => deleteJob(id),
-      () => setJobs((p) => p.filter((j) => j.id !== id)),
+      `inst-del-acc-${institutionId}`,
+      () => deleteInstitutionAccount(institutionId),
+      () => setApprovedInst((p) =>
+        p.map((i) => i.id === institutionId ? { ...i, account: [] } : i),
+      ),
     );
   };
 
@@ -605,6 +560,7 @@ export default function AdminDashboard({
       name: inst.name,
       type: inst.type ?? "",
       country: inst.country ?? "",
+      email: inst.email ?? "",
       website: "",
       description: "",
     });
@@ -632,10 +588,10 @@ export default function AdminDashboard({
           name: instForm.name,
           type: instForm.type,
           country: instForm.country,
+          email: instForm.email,
           website: instForm.website || undefined,
           description: instForm.description || undefined,
         });
-        // Let revalidatePath + router.refresh() repopulate state with real DB ids
         closeInstModal();
         router.refresh();
         return;
@@ -644,18 +600,14 @@ export default function AdminDashboard({
           name: instForm.name,
           type: instForm.type || undefined,
           country: instForm.country || undefined,
+          email: instForm.email || undefined,
           website: instForm.website || undefined,
           description: instForm.description || undefined,
         });
         setApprovedInst((p) =>
           p.map((i) =>
             i.id === editingInst.id
-              ? {
-                  ...i,
-                  name: instForm.name,
-                  type: instForm.type || i.type,
-                  country: instForm.country || i.country,
-                }
+              ? { ...i, name: instForm.name, type: instForm.type || i.type, country: instForm.country || i.country }
               : i,
           ),
         );
@@ -711,9 +663,7 @@ export default function AdminDashboard({
         id: crypto.randomUUID(),
         ...perms,
         assignedAt: new Date().toISOString(),
-        lecturer: lec
-          ? [{ id: lec.id, title: lec.title, profile: lec.profile }]
-          : null,
+        lecturer: lec ? [{ id: lec.id, title: lec.title, profile: lec.profile }] : null,
       };
       const update = (inst: ApprovedInstitution) =>
         inst.id === managerPanel.id
@@ -722,34 +672,26 @@ export default function AdminDashboard({
       setApprovedInst((p) => p.map(update));
       setManagerPanel((prev) => (prev ? update(prev) : null));
     } catch (err) {
-      setManagerError(
-        err instanceof Error ? err.message : "Failed to assign manager.",
-      );
+      setManagerError(err instanceof Error ? err.message : "Failed to assign manager.");
     } finally {
       setManagerLoading(false);
     }
   };
 
   const handleRemoveManager = async (managerId: string) => {
-    if (!managerPanel || !confirm("Remove this manager from the institution?"))
-      return;
+    if (!managerPanel || !confirm("Remove this manager from the institution?")) return;
     setManagerLoading(true);
     setManagerError(null);
     try {
       await removeManager(managerId);
       const filter = (inst: ApprovedInstitution) =>
         inst.id === managerPanel.id
-          ? {
-              ...inst,
-              managers: (inst.managers ?? []).filter((m) => m.id !== managerId),
-            }
+          ? { ...inst, managers: (inst.managers ?? []).filter((m) => m.id !== managerId) }
           : inst;
       setApprovedInst((p) => p.map(filter));
       setManagerPanel((prev) => (prev ? filter(prev) : null));
     } catch (err) {
-      setManagerError(
-        err instanceof Error ? err.message : "Failed to remove manager.",
-      );
+      setManagerError(err instanceof Error ? err.message : "Failed to remove manager.");
     } finally {
       setManagerLoading(false);
     }
@@ -762,20 +704,13 @@ export default function AdminDashboard({
       await updateManagerPermissions(managerId, perms);
       const update = (inst: ApprovedInstitution) =>
         inst.id === managerPanel?.id
-          ? {
-              ...inst,
-              managers: (inst.managers ?? []).map((m) =>
-                m.id === managerId ? { ...m, ...perms } : m,
-              ),
-            }
+          ? { ...inst, managers: (inst.managers ?? []).map((m) => m.id === managerId ? { ...m, ...perms } : m) }
           : inst;
       setApprovedInst((p) => p.map(update));
       setManagerPanel((prev) => (prev ? update(prev) : null));
       setEditingManagerId(null);
     } catch (err) {
-      setManagerError(
-        err instanceof Error ? err.message : "Failed to update permissions.",
-      );
+      setManagerError(err instanceof Error ? err.message : "Failed to update permissions.");
     } finally {
       setManagerLoading(false);
     }
@@ -788,8 +723,7 @@ export default function AdminDashboard({
       users.filter((u) => {
         const q = userSearch.toLowerCase();
         return (
-          (u.fullName?.toLowerCase().includes(q) ||
-            u.email?.toLowerCase().includes(q)) &&
+          (u.fullName?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)) &&
           (userRoleFilter === "ALL" || u.role === userRoleFilter)
         );
       }),
@@ -818,8 +752,7 @@ export default function AdminDashboard({
         const inst = Array.isArray(p.institution) ? p.institution[0] : null;
         const q = programSearch.toLowerCase();
         return (
-          (p.title.toLowerCase().includes(q) ||
-            inst?.name.toLowerCase().includes(q)) &&
+          (p.title.toLowerCase().includes(q) || inst?.name.toLowerCase().includes(q)) &&
           (programFilter === "ALL" ||
             (programFilter === "PUBLISHED" && p.isPublished) ||
             (programFilter === "DRAFT" && !p.isPublished))
@@ -834,8 +767,7 @@ export default function AdminDashboard({
         const emp = Array.isArray(j.employer) ? j.employer[0] : null;
         const q = jobSearch.toLowerCase();
         return (
-          (j.title.toLowerCase().includes(q) ||
-            emp?.companyName.toLowerCase().includes(q)) &&
+          (j.title.toLowerCase().includes(q) || emp?.companyName.toLowerCase().includes(q)) &&
           (jobFilter === "ALL" ||
             (jobFilter === "ACTIVE" && j.isActive) ||
             (jobFilter === "INACTIVE" && !j.isActive))
@@ -848,10 +780,7 @@ export default function AdminDashboard({
     const q = lecturerSearch.toLowerCase();
     return approvedLecturers.filter((l) => {
       const p = getProfile(l.profile);
-      return (
-        p?.fullName?.toLowerCase().includes(q) ||
-        p?.email?.toLowerCase().includes(q)
-      );
+      return p?.fullName?.toLowerCase().includes(q) || p?.email?.toLowerCase().includes(q);
     });
   }, [approvedLecturers, lecturerSearch]);
 
@@ -860,9 +789,7 @@ export default function AdminDashboard({
       new Set(
         (managerPanel?.managers ?? [])
           .map((m) => {
-            const l = Array.isArray(m.lecturer)
-              ? m.lecturer[0]
-              : (m.lecturer as any);
+            const l = Array.isArray(m.lecturer) ? m.lecturer[0] : (m.lecturer as any);
             return l?.id;
           })
           .filter(Boolean),
@@ -875,7 +802,7 @@ export default function AdminDashboard({
   const roleColors: Record<string, string> = {
     STUDENT: "bg-blue-100 text-blue-700",
     LECTURER: "bg-violet-100 text-violet-700",
-    INSTITUTION_ADMIN: "bg-emerald-100 text-emerald-700",
+    INSTITUTION: "bg-teal-100 text-teal-700",
     EMPLOYER: "bg-orange-100 text-orange-700",
     ADMIN: "bg-red-100 text-red-700",
   };
@@ -883,38 +810,13 @@ export default function AdminDashboard({
   const totalPending = pendingInst.length + employers.length + lecturers.length;
   const totalRejected = rejectedLecturers.length + rejectedEmployers.length;
 
-  const navItems: {
-    id: TabType;
-    label: string;
-    icon: typeof Users;
-    badge?: number;
-  }[] = [
+  const navItems: { id: TabType; label: string; icon: typeof Users; badge?: number }[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "users", label: "Users", icon: Users, badge: users.length },
-    {
-      id: "institutions",
-      label: "Approvals",
-      icon: CheckCircle,
-      badge: totalPending,
-    },
-    {
-      id: "rejections",
-      label: "Rejections",
-      icon: XCircle,
-      badge: totalRejected,
-    },
-    {
-      id: "institutionList",
-      label: "Institutions",
-      icon: Building2,
-      badge: approvedInst.length,
-    },
-    {
-      id: "programs",
-      label: "Programs",
-      icon: BookOpen,
-      badge: programs.length,
-    },
+    { id: "institutions", label: "Approvals", icon: CheckCircle, badge: totalPending },
+    { id: "rejections", label: "Rejections", icon: XCircle, badge: totalRejected },
+    { id: "institutionList", label: "Institutions", icon: Building2, badge: approvedInst.length },
+    { id: "programs", label: "Programs", icon: BookOpen, badge: programs.length },
     { id: "jobs", label: "Jobs", icon: Briefcase, badge: jobs.length },
   ];
 
@@ -935,16 +837,10 @@ export default function AdminDashboard({
         disabled={loadingId === id}
         className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${color}`}
       >
-        {loadingId === id ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : (
-          children
-        )}
+        {loadingId === id ? <Loader2 className="h-3 w-3 animate-spin" /> : children}
       </button>
     );
   }
-
-  // ── Permission section (reused in both new-assign and edit views) ─────────
 
   function PermSection({
     localPerms,
@@ -959,9 +855,7 @@ export default function AdminDashboard({
           label="Manage Programs"
           description="Create, edit and publish programs"
           value={localPerms.canManagePrograms}
-          onChange={(v) =>
-            setLocalPerms((p) => ({ ...p, canManagePrograms: v }))
-          }
+          onChange={(v) => setLocalPerms((p) => ({ ...p, canManagePrograms: v }))}
         />
         <PermToggle
           label="Edit Institution Profile"
@@ -973,17 +867,13 @@ export default function AdminDashboard({
           label="View Analytics"
           description="Access enrollment and performance data"
           value={localPerms.canViewAnalytics}
-          onChange={(v) =>
-            setLocalPerms((p) => ({ ...p, canViewAnalytics: v }))
-          }
+          onChange={(v) => setLocalPerms((p) => ({ ...p, canViewAnalytics: v }))}
         />
         <PermToggle
           label="Post Announcements"
           description="Publish announcements to students"
           value={localPerms.canPostAnnouncements}
-          onChange={(v) =>
-            setLocalPerms((p) => ({ ...p, canPostAnnouncements: v }))
-          }
+          onChange={(v) => setLocalPerms((p) => ({ ...p, canPostAnnouncements: v }))}
         />
       </div>
     );
@@ -996,15 +886,13 @@ export default function AdminDashboard({
   return (
     <div className="flex h-screen bg-slate-50">
       {/* ── Sidebar ── */}
-      <aside
-        className={`${sidebarOpen ? "w-64" : "w-0 overflow-hidden"} flex flex-col bg-slate-900 text-white transition-all duration-300 md:w-64`}
-      >
+      <aside className={`${sidebarOpen ? "w-64" : "w-0 overflow-hidden"} flex flex-col bg-slate-900 text-white transition-all duration-300 md:w-64`}>
         <div className="flex items-center gap-3 border-b border-slate-700 px-6 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
             <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-wide">DEH-SL</p>
+            <p className="text-sm font-bold tracking-wide">iNEXORA</p>
             <p className="text-xs text-slate-400">Admin Panel</p>
           </div>
         </div>
@@ -1012,14 +900,9 @@ export default function AdminDashboard({
           {navItems.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
-              onClick={() => {
-                setActiveTab(id);
-                setManagerPanel(null);
-              }}
+              onClick={() => { setActiveTab(id); setManagerPanel(null); }}
               className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                activeTab === id
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                activeTab === id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -1027,9 +910,7 @@ export default function AdminDashboard({
                 {label}
               </div>
               {badge !== undefined && badge > 0 && (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === id ? "bg-blue-500 text-white" : "bg-slate-700 text-slate-300"}`}
-                >
+                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === id ? "bg-blue-500 text-white" : "bg-slate-700 text-slate-300"}`}>
                   {badge}
                 </span>
               )}
@@ -1041,26 +922,20 @@ export default function AdminDashboard({
             onClick={() => setShowSignOutConfirm(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
           >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+            <LogOut className="h-4 w-4" />Sign Out
           </button>
         </div>
       </aside>
 
       {/* ── Main ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
             >
-              {sidebarOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
             <div>
               <h1 className="text-lg font-bold text-slate-900">
@@ -1072,86 +947,45 @@ export default function AdminDashboard({
                       ? "Approvals"
                       : activeTab === "institutionList"
                         ? "Institutions"
-                        : activeTab.charAt(0).toUpperCase() +
-                          activeTab.slice(1)}
+                        : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
               </h1>
-              <p className="text-xs text-slate-500">
-                DEH-SL Platform Administration
-              </p>
+              <p className="text-xs text-slate-500">iNEXORA Platform Administration</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {errorMsg && (
-              <p className="max-w-xs truncate text-sm text-red-500">
-                {errorMsg}
-              </p>
-            )}
+            {errorMsg && <p className="max-w-xs truncate text-sm text-red-500">{errorMsg}</p>}
             {totalPending > 0 && (
               <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-                <AlertTriangle className="h-4 w-4" />
-                {totalPending} pending
+                <AlertTriangle className="h-4 w-4" />{totalPending} pending
               </div>
             )}
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
+
           {/* ══════ OVERVIEW ══════════════════════════════════════════════ */}
           {activeTab === "overview" && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  {
-                    label: "Total Users",
-                    value: users.length,
-                    icon: Users,
-                    bg: "bg-blue-50",
-                    text: "text-blue-600",
-                  },
-                  {
-                    label: "Institutions",
-                    value: approvedInst.length,
-                    icon: Building2,
-                    bg: "bg-violet-50",
-                    text: "text-violet-600",
-                  },
-                  {
-                    label: "Programs",
-                    value: programs.length,
-                    icon: BookOpen,
-                    bg: "bg-emerald-50",
-                    text: "text-emerald-600",
-                  },
-                  {
-                    label: "Job Listings",
-                    value: jobs.length,
-                    icon: Briefcase,
-                    bg: "bg-orange-50",
-                    text: "text-orange-600",
-                  },
+                  { label: "Total Users", value: users.length, icon: Users, bg: "bg-blue-50", text: "text-blue-600" },
+                  { label: "Institutions", value: approvedInst.length, icon: Building2, bg: "bg-violet-50", text: "text-violet-600" },
+                  { label: "Programs", value: programs.length, icon: BookOpen, bg: "bg-emerald-50", text: "text-emerald-600" },
+                  { label: "Job Listings", value: jobs.length, icon: Briefcase, bg: "bg-orange-50", text: "text-orange-600" },
                 ].map(({ label, value, icon: Icon, bg, text }) => (
-                  <div
-                    key={label}
-                    className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-                  >
+                  <div key={label} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-slate-500">
-                          {label}
-                        </p>
-                        <p className="mt-1 text-3xl font-bold text-slate-900">
-                          {value.toLocaleString()}
-                        </p>
+                        <p className="text-sm font-medium text-slate-500">{label}</p>
+                        <p className="mt-1 text-3xl font-bold text-slate-900">{value.toLocaleString()}</p>
                       </div>
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl ${bg}`}
-                      >
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${bg}`}>
                         <Icon className={`h-6 w-6 ${text}`} />
                       </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1 text-xs text-emerald-600">
-                      <TrendingUp className="h-3 w-3" />
-                      <span>Active on platform</span>
+                      <TrendingUp className="h-3 w-3" /><span>Active on platform</span>
                     </div>
                   </div>
                 ))}
@@ -1163,27 +997,19 @@ export default function AdminDashboard({
                   </div>
                   <div className="divide-y divide-slate-50">
                     {recentUsers.slice(0, 5).map((u) => (
-                      <div
-                        key={u.id}
-                        className="flex items-center justify-between px-6 py-3"
-                      >
+                      <div key={u.id} className="flex items-center justify-between px-6 py-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
                             {u.fullName?.charAt(0).toUpperCase() ?? "?"}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {u.fullName ?? "Unknown"}
-                            </p>
+                            <p className="text-sm font-medium text-slate-900">{u.fullName ?? "Unknown"}</p>
                             <div className="flex items-center gap-1 text-xs text-slate-400">
-                              <Clock className="h-3 w-3" />
-                              {new Date(u.createdAt).toLocaleDateString()}
+                              <Clock className="h-3 w-3" />{new Date(u.createdAt).toLocaleDateString()}
                             </div>
                           </div>
                         </div>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${roleColors[u.role ?? ""] ?? "bg-slate-100 text-slate-600"}`}
-                        >
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${roleColors[u.role ?? ""] ?? "bg-slate-100 text-slate-600"}`}>
                           {u.role ?? "unknown"}
                         </span>
                       </div>
@@ -1192,81 +1018,51 @@ export default function AdminDashboard({
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                    <h2 className="font-bold text-slate-900">
-                      Pending Approvals
-                    </h2>
+                    <h2 className="font-bold text-slate-900">Pending Approvals</h2>
                     {totalPending > 0 && (
-                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
-                        {totalPending}
-                      </span>
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">{totalPending}</span>
                     )}
                   </div>
                   <div className="divide-y divide-slate-50">
                     {totalPending === 0 ? (
                       <div className="px-6 py-10 text-center">
                         <CheckCircle className="mx-auto mb-3 h-10 w-10 text-emerald-400" />
-                        <p className="text-sm font-medium text-slate-700">
-                          All caught up!
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          No pending approvals at this time
-                        </p>
+                        <p className="text-sm font-medium text-slate-700">All caught up!</p>
+                        <p className="text-xs text-slate-400">No pending approvals at this time</p>
                       </div>
                     ) : (
                       <>
                         {lecturers.slice(0, 2).map((lec) => {
                           const p = getProfile(lec.profile);
                           return (
-                            <div
-                              key={lec.id}
-                              className="flex items-center gap-3 px-6 py-3"
-                            >
+                            <div key={lec.id} className="flex items-center gap-3 px-6 py-3">
                               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
                                 {p?.fullName?.charAt(0).toUpperCase() ?? "?"}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium text-slate-900">
-                                  {lec.title ? `${lec.title} ` : ""}
-                                  {p?.fullName ?? "Unknown"}
+                                  {lec.title ? `${lec.title} ` : ""}{p?.fullName ?? "Unknown"}
                                 </p>
-                                <p className="truncate text-xs text-slate-400">
-                                  {p?.email}
-                                </p>
+                                <p className="truncate text-xs text-slate-400">{p?.email}</p>
                               </div>
-                              <span className="flex-shrink-0 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                                Lecturer
-                              </span>
-                              <span className="flex-shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                Pending
-                              </span>
+                              <span className="flex-shrink-0 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">Lecturer</span>
+                              <span className="flex-shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Pending</span>
                             </div>
                           );
                         })}
                         {employers.slice(0, 2).map((emp) => {
                           const p = getProfile(emp.profile);
                           return (
-                            <div
-                              key={emp.id}
-                              className="flex items-center gap-3 px-6 py-3"
-                            >
+                            <div key={emp.id} className="flex items-center gap-3 px-6 py-3">
                               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
-                                {emp.companyName?.charAt(0).toUpperCase() ??
-                                  "?"}
+                                {emp.companyName?.charAt(0).toUpperCase() ?? "?"}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium text-slate-900">
-                                  {emp.companyName}
-                                </p>
-                                <p className="truncate text-xs text-slate-400">
-                                  {p?.fullName} · {p?.email}
-                                </p>
+                                <p className="truncate text-sm font-medium text-slate-900">{emp.companyName}</p>
+                                <p className="truncate text-xs text-slate-400">{p?.fullName} · {p?.email}</p>
                               </div>
-                              <span className="flex-shrink-0 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                                Employer
-                              </span>
-                              <span className="flex-shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                Pending
-                              </span>
+                              <span className="flex-shrink-0 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">Employer</span>
+                              <span className="flex-shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Pending</span>
                             </div>
                           );
                         })}
@@ -1312,6 +1108,7 @@ export default function AdminDashboard({
                     <option value="ALL">All Roles</option>
                     <option value="STUDENT">Student</option>
                     <option value="LECTURER">Lecturer</option>
+                    <option value="INSTITUTION">Institution</option>
                     <option value="EMPLOYER">Employer</option>
                     <option value="ADMIN">Admin</option>
                   </select>
@@ -1320,86 +1117,45 @@ export default function AdminDashboard({
               </div>
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
-                  <p className="text-sm text-slate-500">
-                    {filteredUsers.length} users found
-                  </p>
+                  <p className="text-sm text-slate-500">{filteredUsers.length} users found</p>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {filteredUsers.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
-                      No users match your search
-                    </p>
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">No users match your search</p>
                   ) : (
                     filteredUsers.map((u) => (
-                      <div
-                        key={u.id}
-                        className="flex items-center justify-between px-6 py-4"
-                      >
+                      <div key={u.id} className="flex items-center justify-between px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${u.isActive ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-400"}`}
-                          >
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${u.isActive ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-400"}`}>
                             {u.fullName?.charAt(0).toUpperCase() ?? "?"}
                           </div>
                           <div>
-                            <p className="font-medium text-slate-900">
-                              {u.fullName ?? "Unknown"}
-                            </p>
+                            <p className="font-medium text-slate-900">{u.fullName ?? "Unknown"}</p>
                             <p className="text-xs text-slate-400">{u.email}</p>
-                            <p className="text-xs text-slate-400">
-                              Joined{" "}
-                              {new Date(u.createdAt).toLocaleDateString()}
-                            </p>
+                            <p className="text-xs text-slate-400">Joined {new Date(u.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${roleColors[u.role ?? ""] ?? "bg-slate-100 text-slate-600"}`}
-                          >
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${roleColors[u.role ?? ""] ?? "bg-slate-100 text-slate-600"}`}>
                             {u.role ?? "unknown"}
                           </span>
                           {!u.isActive && (
-                            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-600">
-                              Suspended
-                            </span>
+                            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-600">Suspended</span>
                           )}
                           {u.id === currentUserId ? (
-                            <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">
-                              You
-                            </span>
+                            <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">You</span>
                           ) : (
                             <ActionBtn
                               id={u.id}
-                              onClick={() =>
-                                handleSuspendUser(u.id, u.isActive)
-                              }
-                              color={
-                                u.isActive
-                                  ? "bg-red-50 text-red-700 hover:bg-red-100"
-                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              }
+                              onClick={() => handleSuspendUser(u.id, u.isActive)}
+                              color={u.isActive ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}
                             >
-                              {u.isActive ? (
-                                <>
-                                  <UserX className="h-3.5 w-3.5" />
-                                  Suspend
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="h-3.5 w-3.5" />
-                                  Reactivate
-                                </>
-                              )}
+                              {u.isActive ? <><UserX className="h-3.5 w-3.5" />Suspend</> : <><UserCheck className="h-3.5 w-3.5" />Reactivate</>}
                             </ActionBtn>
                           )}
                           {u.id !== currentUserId && (
-                            <ActionBtn
-                              id={`del-${u.id}`}
-                              onClick={() => handleDeleteUser(u.id)}
-                              color="bg-red-600 text-white hover:bg-red-700"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                            <ActionBtn id={`del-${u.id}`} onClick={() => handleDeleteUser(u.id)} color="bg-red-600 text-white hover:bg-red-700">
+                              <Trash2 className="h-3.5 w-3.5" />Delete
                             </ActionBtn>
                           )}
                         </div>
@@ -1416,98 +1172,47 @@ export default function AdminDashboard({
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
-                  {
-                    label: "Pending Lecturers",
-                    value: lecturers.length,
-                    icon: Users,
-                    bg: "bg-blue-50",
-                    text: "text-blue-600",
-                    border: "border-blue-100",
-                  },
-                  {
-                    label: "Pending Employers",
-                    value: employers.length,
-                    icon: Briefcase,
-                    bg: "bg-orange-50",
-                    text: "text-orange-600",
-                    border: "border-orange-100",
-                  },
+                  { label: "Pending Lecturers", value: lecturers.length, icon: Users, bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-100" },
+                  { label: "Pending Employers", value: employers.length, icon: Briefcase, bg: "bg-orange-50", text: "text-orange-600", border: "border-orange-100" },
                 ].map(({ label, value, icon: Icon, bg, text, border }) => (
-                  <div
-                    key={label}
-                    className={`rounded-xl border ${border} bg-white p-5 shadow-sm`}
-                  >
+                  <div key={label} className={`rounded-xl border ${border} bg-white p-5 shadow-sm`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-slate-500">
-                          {label}
-                        </p>
-                        <p className="mt-1 text-3xl font-bold text-slate-900">
-                          {value}
-                        </p>
+                        <p className="text-sm font-medium text-slate-500">{label}</p>
+                        <p className="mt-1 text-3xl font-bold text-slate-900">{value}</p>
                       </div>
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl ${bg}`}
-                      >
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${bg}`}>
                         <Icon className={`h-6 w-6 ${text}`} />
                       </div>
                     </div>
-                    <p
-                      className={`mt-3 text-xs font-medium ${value > 0 ? "text-amber-600" : "text-emerald-600"}`}
-                    >
+                    <p className={`mt-3 text-xs font-medium ${value > 0 ? "text-amber-600" : "text-emerald-600"}`}>
                       {value > 0 ? `${value} awaiting review` : "All caught up"}
                     </p>
                   </div>
                 ))}
               </div>
 
-              <ApprovalSection
-                title="Pending Lecturer Approvals"
-                count={lecturers.length}
-                empty={<EmptyApproval label="No pending lecturer approvals" />}
-              >
+              <ApprovalSection title="Pending Lecturer Approvals" count={lecturers.length} empty={<EmptyApproval label="No pending lecturer approvals" />}>
                 {lecturers.map((lec) => {
                   const p = getProfile(lec.profile);
                   return (
-                    <div
-                      key={lec.id}
-                      className="flex items-center justify-between px-6 py-4"
-                    >
+                    <div key={lec.id} className="flex items-center justify-between px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100">
                           <Users className="h-5 w-5 text-violet-600" />
                         </div>
                         <div>
-                          <p className="font-medium text-slate-900">
-                            {lec.title ? `${lec.title} ` : ""}
-                            {p?.fullName ?? "Unknown"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {lec.specialization.slice(0, 2).join(", ")} ·{" "}
-                            {p?.email}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            Applied{" "}
-                            {new Date(lec.createdAt).toLocaleDateString()}
-                          </p>
+                          <p className="font-medium text-slate-900">{lec.title ? `${lec.title} ` : ""}{p?.fullName ?? "Unknown"}</p>
+                          <p className="text-xs text-slate-500">{lec.specialization.slice(0, 2).join(", ")} {p?.email}</p>
+                          <p className="text-xs text-slate-400">Applied {new Date(lec.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <ActionBtn
-                          id={lec.id}
-                          onClick={() => handleApproveLecturer(lec.id)}
-                          color="bg-emerald-600 text-white hover:bg-emerald-700"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Approve
+                        <ActionBtn id={lec.id} onClick={() => handleApproveLecturer(lec.id)} color="bg-emerald-600 text-white hover:bg-emerald-700">
+                          <CheckCircle className="h-4 w-4" />Approve
                         </ActionBtn>
-                        <ActionBtn
-                          id={lec.id}
-                          onClick={() => handleRejectLecturer(lec.id)}
-                          color="border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Reject
+                        <ActionBtn id={lec.id} onClick={() => handleRejectLecturer(lec.id)} color="border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                          <XCircle className="h-4 w-4" />Reject
                         </ActionBtn>
                       </div>
                     </div>
@@ -1515,53 +1220,27 @@ export default function AdminDashboard({
                 })}
               </ApprovalSection>
 
-              <ApprovalSection
-                title="Pending Employer Verifications"
-                count={employers.length}
-                empty={
-                  <EmptyApproval label="No pending employer verifications" />
-                }
-              >
+              <ApprovalSection title="Pending Employer Verifications" count={employers.length} empty={<EmptyApproval label="No pending employer verifications" />}>
                 {employers.map((emp) => {
                   const p = getProfile(emp.profile);
                   return (
-                    <div
-                      key={emp.id}
-                      className="flex items-center justify-between px-6 py-4"
-                    >
+                    <div key={emp.id} className="flex items-center justify-between px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
                           <Briefcase className="h-5 w-5 text-orange-600" />
                         </div>
                         <div>
-                          <p className="font-medium text-slate-900">
-                            {emp.companyName}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {emp.industry} · {p?.fullName} · {p?.email}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            Applied{" "}
-                            {new Date(emp.createdAt).toLocaleDateString()}
-                          </p>
+                          <p className="font-medium text-slate-900">{emp.companyName}</p>
+                          <p className="text-xs text-slate-500">{emp.industry} · {p?.fullName} · {p?.email}</p>
+                          <p className="text-xs text-slate-400">Applied {new Date(emp.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <ActionBtn
-                          id={emp.id}
-                          onClick={() => handleApproveEmployer(emp.id)}
-                          color="bg-emerald-600 text-white hover:bg-emerald-700"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Verify
+                        <ActionBtn id={emp.id} onClick={() => handleApproveEmployer(emp.id)} color="bg-emerald-600 text-white hover:bg-emerald-700">
+                          <CheckCircle className="h-4 w-4" />Verify
                         </ActionBtn>
-                        <ActionBtn
-                          id={emp.id}
-                          onClick={() => handleRejectEmployer(emp.id)}
-                          color="border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Reject
+                        <ActionBtn id={emp.id} onClick={() => handleRejectEmployer(emp.id)} color="border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                          <XCircle className="h-4 w-4" />Reject
                         </ActionBtn>
                       </div>
                     </div>
@@ -1602,22 +1281,17 @@ export default function AdminDashboard({
                   onClick={openCreate}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  <Plus className="h-4 w-4" />
-                  New Institution
+                  <Plus className="h-4 w-4" />New Institution
                 </button>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
-                  <p className="text-sm text-slate-500">
-                    {filteredInst.length} institutions found
-                  </p>
+                  <p className="text-sm text-slate-500">{filteredInst.length} institutions found</p>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {filteredInst.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
-                      No institutions match your search
-                    </p>
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">No institutions match your search</p>
                   ) : (
                     filteredInst.map((inst) => {
                       const managers = inst.managers ?? [];
@@ -1626,56 +1300,37 @@ export default function AdminDashboard({
                           ? managers[0].lecturer[0]
                           : ((managers[0].lecturer as any) ?? null)
                         : null;
-                      const firstProfile = firstLec
-                        ? getProfile(firstLec.profile)
-                        : null;
+                      const firstProfile = firstLec ? getProfile(firstLec.profile) : null;
+                      const hasAccount = Array.isArray(inst.account) && inst.account.length > 0;
 
                       return (
-                        <div
-                          key={inst.id}
-                          className="flex items-center gap-4 px-6 py-4"
-                        >
-                          <div
-                            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${inst.isActive ? "bg-violet-100" : "bg-red-100"}`}
-                          >
-                            <Building2
-                              className={`h-5 w-5 ${inst.isActive ? "text-violet-600" : "text-red-400"}`}
-                            />
+                        <div key={inst.id} className="flex items-center gap-4 px-6 py-4">
+                          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${inst.isActive ? "bg-violet-100" : "bg-red-100"}`}>
+                            <Building2 className={`h-5 w-5 ${inst.isActive ? "text-violet-600" : "text-red-400"}`} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-medium text-slate-900">
-                                {inst.name}
-                              </p>
+                              <p className="font-medium text-slate-900">{inst.name}</p>
                               {inst.type && (
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                                  {inst.type}
-                                </span>
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{inst.type}</span>
                               )}
                               {!inst.isActive && (
-                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
-                                  Suspended
-                                </span>
+                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">Suspended</span>
+                              )}
+                              {hasAccount && (
+                                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">Account Active</span>
                               )}
                             </div>
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-4 text-xs text-slate-400">
                               {inst.country && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {inst.country}
-                                </span>
+                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inst.country}</span>
                               )}
                               <span className="flex items-center gap-1">
                                 <UserCog className="h-3 w-3" />
                                 {managers.length === 0 ? (
-                                  <span className="text-amber-500 italic">
-                                    No manager
-                                  </span>
+                                  <span className="text-amber-500 italic">No manager</span>
                                 ) : managers.length === 1 ? (
-                                  <span>
-                                    {firstProfile?.fullName ??
-                                      "Manager assigned"}
-                                  </span>
+                                  <span>{firstProfile?.fullName ?? "Manager assigned"}</span>
                                 ) : (
                                   <span>{managers.length} managers</span>
                                 )}
@@ -1687,49 +1342,45 @@ export default function AdminDashboard({
                               onClick={() => openEdit(inst)}
                               className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
+                              <Pencil className="h-3.5 w-3.5" />Edit
                             </button>
                             <button
                               onClick={() => openManagerPanel(inst)}
                               className="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
                             >
                               <UserCog className="h-3.5 w-3.5" />
-                              Managers
-                              {managers.length > 0
-                                ? ` (${managers.length})`
-                                : ""}
+                              Managers{managers.length > 0 ? ` (${managers.length})` : ""}
                             </button>
+                            {hasAccount ? (
+                              <ActionBtn
+                                id={`inst-del-acc-${inst.id}`}
+                                onClick={() => handleDeleteInstitutionAccount(inst.id)}
+                                color="bg-red-50 text-red-700 hover:bg-red-100"
+                              >
+                                <UserX className="h-3.5 w-3.5" />Delete Account
+                              </ActionBtn>
+                            ) : (
+                              <ActionBtn
+                                id={`inst-acc-${inst.id}`}
+                                onClick={() => handleCreateInstitutionAccount(inst.id)}
+                                color="bg-teal-50 text-teal-700 hover:bg-teal-100"
+                              >
+                                <UserCheck className="h-3.5 w-3.5" />Create Account
+                              </ActionBtn>
+                            )}
                             <ActionBtn
                               id={inst.id}
-                              onClick={() =>
-                                handleSuspendInst(inst.id, inst.isActive)
-                              }
-                              color={
-                                inst.isActive
-                                  ? "bg-red-50 text-red-700 hover:bg-red-100"
-                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              }
+                              onClick={() => handleSuspendInst(inst.id, inst.isActive)}
+                              color={inst.isActive ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}
                             >
-                              {inst.isActive ? (
-                                <>
-                                  <UserX className="h-3.5 w-3.5" />
-                                  Suspend
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="h-3.5 w-3.5" />
-                                  Reactivate
-                                </>
-                              )}
+                              {inst.isActive ? <><UserX className="h-3.5 w-3.5" />Suspend</> : <><UserCheck className="h-3.5 w-3.5" />Reactivate</>}
                             </ActionBtn>
                             <ActionBtn
                               id={`del-inst-${inst.id}`}
                               onClick={() => handleDeleteInst(inst.id)}
                               color="bg-red-600 text-white hover:bg-red-700"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                              <Trash2 className="h-3.5 w-3.5" />Delete
                             </ActionBtn>
                           </div>
                         </div>
@@ -1748,8 +1399,7 @@ export default function AdminDashboard({
                 onClick={closeManagerPanel}
                 className="flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Institutions
+                <ArrowLeft className="h-4 w-4" />Back to Institutions
               </button>
 
               <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1757,24 +1407,15 @@ export default function AdminDashboard({
                   <Building2 className="h-6 w-6 text-violet-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    {managerPanel.name}
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    {[managerPanel.type, managerPanel.country]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
+                  <h2 className="text-lg font-bold text-slate-900">{managerPanel.name}</h2>
+                  <p className="text-sm text-slate-500">{[managerPanel.type, managerPanel.country].filter(Boolean).join(" · ")}</p>
                 </div>
               </div>
 
               <div className="grid gap-5 lg:grid-cols-2">
-                {/* Current managers */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                    <h3 className="font-bold text-slate-900">
-                      Current Managers
-                    </h3>
+                    <h3 className="font-bold text-slate-900">Current Managers</h3>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                       {(managerPanel.managers ?? []).length}
                     </span>
@@ -1783,44 +1424,26 @@ export default function AdminDashboard({
                     {(managerPanel.managers ?? []).length === 0 ? (
                       <div className="px-5 py-10 text-center">
                         <UserCog className="mx-auto mb-3 h-10 w-10 text-slate-200" />
-                        <p className="font-medium text-slate-600">
-                          No managers yet
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          Assign an approved lecturer using the panel on the
-                          right.
-                        </p>
+                        <p className="font-medium text-slate-600">No managers yet</p>
+                        <p className="mt-1 text-xs text-slate-400">Assign an approved lecturer using the panel on the right.</p>
                       </div>
                     ) : (
                       (managerPanel.managers ?? []).map((mgr) => {
-                        const lec = Array.isArray(mgr.lecturer)
-                          ? mgr.lecturer[0]
-                          : ((mgr.lecturer as any) ?? null);
+                        const lec = Array.isArray(mgr.lecturer) ? mgr.lecturer[0] : ((mgr.lecturer as any) ?? null);
                         const profile = lec ? getProfile(lec.profile) : null;
                         const isEditing = editingManagerId === mgr.id;
-
                         return (
                           <div key={mgr.id} className="space-y-3 p-5">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-700">
-                                  {profile?.fullName?.charAt(0).toUpperCase() ??
-                                    "?"}
+                                  {profile?.fullName?.charAt(0).toUpperCase() ?? "?"}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-semibold text-slate-900">
-                                    {lec?.title ? `${lec.title} ` : ""}
-                                    {profile?.fullName ?? "Unknown"}
-                                  </p>
-                                  <p className="text-xs text-slate-400">
-                                    {profile?.email}
-                                  </p>
+                                  <p className="text-sm font-semibold text-slate-900">{lec?.title ? `${lec.title} ` : ""}{profile?.fullName ?? "Unknown"}</p>
+                                  <p className="text-xs text-slate-400">{profile?.email}</p>
                                   <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-                                    <Calendar className="h-3 w-3" />
-                                    Assigned{" "}
-                                    {new Date(
-                                      mgr.assignedAt,
-                                    ).toLocaleDateString()}
+                                    <Calendar className="h-3 w-3" />Assigned {new Date(mgr.assignedAt).toLocaleDateString()}
                                   </div>
                                 </div>
                               </div>
@@ -1833,11 +1456,9 @@ export default function AdminDashboard({
                                       setEditingManagerId(mgr.id);
                                       setPerms({
                                         canEditProfile: mgr.canEditProfile,
-                                        canManagePrograms:
-                                          mgr.canManagePrograms,
+                                        canManagePrograms: mgr.canManagePrograms,
                                         canViewAnalytics: mgr.canViewAnalytics,
-                                        canPostAnnouncements:
-                                          mgr.canPostAnnouncements,
+                                        canPostAnnouncements: mgr.canPostAnnouncements,
                                       });
                                     }
                                   }}
@@ -1847,83 +1468,43 @@ export default function AdminDashboard({
                                       : "border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                                   }`}
                                 >
-                                  {isEditing ? (
-                                    "Cancel"
-                                  ) : (
-                                    <span className="flex items-center gap-1">
-                                      <Pencil className="h-3 w-3" />
-                                      Permissions
-                                    </span>
-                                  )}
+                                  {isEditing ? "Cancel" : <span className="flex items-center gap-1"><Pencil className="h-3 w-3" />Permissions</span>}
                                 </button>
                                 <button
                                   onClick={() => handleRemoveManager(mgr.id)}
                                   disabled={managerLoading}
                                   className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                                 >
-                                  {managerLoading ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <UserX className="h-3 w-3" />
-                                  )}
-                                  Remove
+                                  {managerLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserX className="h-3 w-3" />}Remove
                                 </button>
                               </div>
                             </div>
-
-                            {/* Collapsed permission badges */}
                             {!isEditing && (
                               <div className="flex flex-wrap gap-1.5 pl-12">
                                 {[
-                                  {
-                                    label: "Programs",
-                                    val: mgr.canManagePrograms,
-                                  },
-                                  {
-                                    label: "Edit Profile",
-                                    val: mgr.canEditProfile,
-                                  },
-                                  {
-                                    label: "Analytics",
-                                    val: mgr.canViewAnalytics,
-                                  },
-                                  {
-                                    label: "Announcements",
-                                    val: mgr.canPostAnnouncements,
-                                  },
+                                  { label: "Programs", val: mgr.canManagePrograms },
+                                  { label: "Edit Profile", val: mgr.canEditProfile },
+                                  { label: "Analytics", val: mgr.canViewAnalytics },
+                                  { label: "Announcements", val: mgr.canPostAnnouncements },
                                 ].map(({ label, val }) => (
-                                  <span
-                                    key={label}
-                                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${val ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400 line-through"}`}
-                                  >
+                                  <span key={label} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${val ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400 line-through"}`}>
                                     {label}
                                   </span>
                                 ))}
                               </div>
                             )}
-
-                            {/* Inline permission editor */}
                             {isEditing && (
                               <div className="space-y-2 pl-12">
-                                <PermSection
-                                  localPerms={perms}
-                                  setLocalPerms={setPerms}
-                                />
+                                <PermSection localPerms={perms} setLocalPerms={setPerms} />
                                 {managerError && (
-                                  <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                                    {managerError}
-                                  </p>
+                                  <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{managerError}</p>
                                 )}
                                 <button
                                   onClick={() => handleUpdatePerms(mgr.id)}
                                   disabled={managerLoading}
                                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
                                 >
-                                  {managerLoading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <CheckCircle className="h-4 w-4" />
-                                  )}
+                                  {managerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                                   Save Permissions
                                 </button>
                               </div>
@@ -1935,15 +1516,10 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
-                {/* Assign new manager */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="border-b border-slate-100 px-5 py-4">
-                    <h3 className="font-bold text-slate-900">
-                      Assign a Manager
-                    </h3>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Set permissions below, then pick an approved lecturer
-                    </p>
+                    <h3 className="font-bold text-slate-900">Assign a Manager</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">Set permissions below, then pick an approved lecturer</p>
                   </div>
                   <div className="space-y-4 p-5">
                     <div className="relative">
@@ -1956,69 +1532,42 @@ export default function AdminDashboard({
                         className="w-full rounded-lg border border-slate-200 py-2.5 pr-4 pl-9 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-                        Permissions for new assignment
-                      </p>
-                      <PermSection
-                        localPerms={perms}
-                        setLocalPerms={setPerms}
-                      />
+                      <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Permissions for new assignment</p>
+                      <PermSection localPerms={perms} setLocalPerms={setPerms} />
                     </div>
-
                     {managerError && !editingManagerId && (
-                      <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                        {managerError}
-                      </p>
+                      <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{managerError}</p>
                     )}
-
                     <div className="max-h-64 divide-y divide-slate-50 overflow-y-auto rounded-xl border border-slate-100">
                       {filteredLecturers.length === 0 ? (
                         <p className="px-4 py-8 text-center text-sm text-slate-400">
-                          {lecturerSearch
-                            ? "No lecturers match your search"
-                            : "No approved lecturers available"}
+                          {lecturerSearch ? "No lecturers match your search" : "No approved lecturers available"}
                         </p>
                       ) : (
                         filteredLecturers.map((lec) => {
                           const p = getProfile(lec.profile);
                           const already = assignedLecturerIds.has(lec.id);
                           return (
-                            <div
-                              key={lec.id}
-                              className="flex items-center justify-between px-4 py-3"
-                            >
+                            <div key={lec.id} className="flex items-center justify-between px-4 py-3">
                               <div className="flex min-w-0 items-center gap-3">
                                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
                                   {p?.fullName?.charAt(0).toUpperCase() ?? "?"}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-medium text-slate-900">
-                                    {lec.title ? `${lec.title} ` : ""}
-                                    {p?.fullName ?? "Unknown"}
-                                  </p>
-                                  <p className="truncate text-xs text-slate-400">
-                                    {p?.email}
-                                  </p>
+                                  <p className="truncate text-sm font-medium text-slate-900">{lec.title ? `${lec.title} ` : ""}{p?.fullName ?? "Unknown"}</p>
+                                  <p className="truncate text-xs text-slate-400">{p?.email}</p>
                                 </div>
                               </div>
                               {already ? (
-                                <span className="ml-2 flex-shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                  Assigned
-                                </span>
+                                <span className="ml-2 flex-shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Assigned</span>
                               ) : (
                                 <button
                                   onClick={() => handleAssign(lec.id)}
                                   disabled={managerLoading}
                                   className="ml-2 flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
                                 >
-                                  {managerLoading ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <UserCheck className="h-3.5 w-3.5" />
-                                  )}
-                                  Assign
+                                  {managerLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}Assign
                                 </button>
                               )}
                             </div>
@@ -2037,121 +1586,61 @@ export default function AdminDashboard({
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
-                  {
-                    label: "Rejected Lecturers",
-                    value: rejectedLecturers.length,
-                    icon: Users,
-                    bg: "bg-violet-50",
-                    text: "text-violet-600",
-                    border: "border-violet-100",
-                  },
-                  {
-                    label: "Rejected Employers",
-                    value: rejectedEmployers.length,
-                    icon: Briefcase,
-                    bg: "bg-orange-50",
-                    text: "text-orange-600",
-                    border: "border-orange-100",
-                  },
+                  { label: "Rejected Lecturers", value: rejectedLecturers.length, icon: Users, bg: "bg-violet-50", text: "text-violet-600", border: "border-violet-100" },
+                  { label: "Rejected Employers", value: rejectedEmployers.length, icon: Briefcase, bg: "bg-orange-50", text: "text-orange-600", border: "border-orange-100" },
                 ].map(({ label, value, icon: Icon, bg, text, border }) => (
-                  <div
-                    key={label}
-                    className={`rounded-xl border ${border} bg-white p-5 shadow-sm`}
-                  >
+                  <div key={label} className={`rounded-xl border ${border} bg-white p-5 shadow-sm`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-slate-500">
-                          {label}
-                        </p>
-                        <p className="mt-1 text-3xl font-bold text-slate-900">
-                          {value}
-                        </p>
+                        <p className="text-sm font-medium text-slate-500">{label}</p>
+                        <p className="mt-1 text-3xl font-bold text-slate-900">{value}</p>
                       </div>
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl ${bg}`}
-                      >
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${bg}`}>
                         <Icon className={`h-6 w-6 ${text}`} />
                       </div>
                     </div>
-                    <p
-                      className={`mt-3 text-xs font-medium ${value > 0 ? "text-red-500" : "text-emerald-600"}`}
-                    >
-                      {value > 0
-                        ? `${value} previously rejected`
-                        : "No rejections"}
+                    <p className={`mt-3 text-xs font-medium ${value > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                      {value > 0 ? `${value} previously rejected` : "No rejections"}
                     </p>
                   </div>
                 ))}
               </div>
 
-              {/* Rejected Lecturers */}
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                  <h2 className="font-bold text-slate-900">
-                    Rejected Lecturers
-                  </h2>
+                  <h2 className="font-bold text-slate-900">Rejected Lecturers</h2>
                   {rejectedLecturers.length > 0 && (
-                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
-                      {rejectedLecturers.length}
-                    </span>
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">{rejectedLecturers.length}</span>
                   )}
                 </div>
                 <div className="divide-y divide-slate-50">
                   {rejectedLecturers.length === 0 ? (
                     <div className="px-6 py-12 text-center">
                       <XCircle className="mx-auto mb-3 h-12 w-12 text-slate-200" />
-                      <p className="font-medium text-slate-900">
-                        No rejected lecturers
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Rejected applications will appear here
-                      </p>
+                      <p className="font-medium text-slate-900">No rejected lecturers</p>
+                      <p className="text-sm text-slate-500">Rejected applications will appear here</p>
                     </div>
                   ) : (
                     rejectedLecturers.map((lec) => {
                       const p = getProfile(lec.profile);
                       return (
-                        <div
-                          key={lec.id}
-                          className="flex items-center justify-between px-6 py-4"
-                        >
+                        <div key={lec.id} className="flex items-center justify-between px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
                               <Users className="h-5 w-5 text-red-400" />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900">
-                                {lec.title ? `${lec.title} ` : ""}
-                                {p?.fullName ?? "Unknown"}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {lec.specialization?.slice(0, 2).join(", ")} ·{" "}
-                                {p?.email}
-                              </p>
-                              <p className="text-xs text-slate-400">
-                                Applied{" "}
-                                {new Date(lec.createdAt).toLocaleDateString()}
-                              </p>
+                              <p className="font-medium text-slate-900">{lec.title ? `${lec.title} ` : ""}{p?.fullName ?? "Unknown"}</p>
+                              <p className="text-xs text-slate-500">{lec.specialization?.slice(0, 2).join(", ")} · {p?.email}</p>
+                              <p className="text-xs text-slate-400">Applied {new Date(lec.createdAt).toLocaleDateString()}</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <ActionBtn
-                              id={lec.id}
-                              onClick={() =>
-                                handleReApproveLecturer(lec.profileId)
-                              }
-                              color="bg-emerald-600 text-white hover:bg-emerald-700"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Re-approve
+                            <ActionBtn id={lec.id} onClick={() => handleReApproveLecturer(lec.id)} color="bg-emerald-600 text-white hover:bg-emerald-700">
+                              <CheckCircle className="h-4 w-4" />Re-approve
                             </ActionBtn>
-                            <ActionBtn
-                              id={`del-${lec.id}`}
-                              onClick={() => handleDeleteUser(lec.profileId)}
-                              color="bg-red-50 text-red-700 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                            <ActionBtn id={`del-${lec.id}`} onClick={() => handleDeleteUser(lec.profileId)} color="bg-red-50 text-red-700 hover:bg-red-100">
+                              <Trash2 className="h-3.5 w-3.5" />Delete
                             </ActionBtn>
                           </div>
                         </div>
@@ -2161,70 +1650,41 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              {/* Rejected Employers */}
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                  <h2 className="font-bold text-slate-900">
-                    Rejected Employers
-                  </h2>
+                  <h2 className="font-bold text-slate-900">Rejected Employers</h2>
                   {rejectedEmployers.length > 0 && (
-                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
-                      {rejectedEmployers.length}
-                    </span>
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">{rejectedEmployers.length}</span>
                   )}
                 </div>
                 <div className="divide-y divide-slate-50">
                   {rejectedEmployers.length === 0 ? (
                     <div className="px-6 py-12 text-center">
                       <XCircle className="mx-auto mb-3 h-12 w-12 text-slate-200" />
-                      <p className="font-medium text-slate-900">
-                        No rejected employers
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Rejected applications will appear here
-                      </p>
+                      <p className="font-medium text-slate-900">No rejected employers</p>
+                      <p className="text-sm text-slate-500">Rejected applications will appear here</p>
                     </div>
                   ) : (
                     rejectedEmployers.map((emp) => {
                       const p = getProfile(emp.profile);
                       return (
-                        <div
-                          key={emp.id}
-                          className="flex items-center justify-between px-6 py-4"
-                        >
+                        <div key={emp.id} className="flex items-center justify-between px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
                               <Briefcase className="h-5 w-5 text-red-400" />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900">
-                                {emp.companyName}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {emp.industry} · {p?.fullName} · {p?.email}
-                              </p>
-                              <p className="text-xs text-slate-400">
-                                Applied{" "}
-                                {new Date(emp.createdAt).toLocaleDateString()}
-                              </p>
+                              <p className="font-medium text-slate-900">{emp.companyName}</p>
+                              <p className="text-xs text-slate-500">{emp.industry} · {p?.fullName} · {p?.email}</p>
+                              <p className="text-xs text-slate-400">Applied {new Date(emp.createdAt).toLocaleDateString()}</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <ActionBtn
-                              id={emp.id}
-                              onClick={() => handleReApproveEmployer(emp.id)}
-                              color="bg-emerald-600 text-white hover:bg-emerald-700"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Re-approve
+                            <ActionBtn id={emp.id} onClick={() => handleReApproveEmployer(emp.id)} color="bg-emerald-600 text-white hover:bg-emerald-700">
+                              <CheckCircle className="h-4 w-4" />Re-approve
                             </ActionBtn>
-                            <ActionBtn
-                              id={`del-${emp.id}`}
-                              onClick={() => handleDeleteUser(emp.profileId)}
-                              color="bg-red-50 text-red-700 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                            <ActionBtn id={`del-${emp.id}`} onClick={() => handleDeleteUser(emp.profileId)} color="bg-red-50 text-red-700 hover:bg-red-100">
+                              <Trash2 className="h-3.5 w-3.5" />Delete
                             </ActionBtn>
                           </div>
                         </div>
@@ -2266,80 +1726,40 @@ export default function AdminDashboard({
               </div>
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
-                  <p className="text-sm text-slate-500">
-                    {filteredPrograms.length} programs found
-                  </p>
+                  <p className="text-sm text-slate-500">{filteredPrograms.length} programs found</p>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {filteredPrograms.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
-                      No programs match your search
-                    </p>
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">No programs match your search</p>
                   ) : (
                     filteredPrograms.map((program) => {
                       const inst = Array.isArray(program.institution)
                         ? program.institution[0]
                         : (program.institution as { name: string } | null);
                       return (
-                        <div
-                          key={program.id}
-                          className="flex items-center justify-between px-6 py-4"
-                        >
+                        <div key={program.id} className="flex items-center justify-between px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
                               <BookOpen className="h-5 w-5 text-emerald-600" />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900">
-                                {program.title}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {inst?.name ?? "Unknown"} ·{" "}
-                                {new Date(
-                                  program.createdAt,
-                                ).toLocaleDateString()}
-                              </p>
+                              <p className="font-medium text-slate-900">{program.title}</p>
+                              <p className="text-xs text-slate-500">{inst?.name ?? "Unknown"} · {new Date(program.createdAt).toLocaleDateString()}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${program.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
-                            >
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${program.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                               {program.isPublished ? "Published" : "Draft"}
                             </span>
                             <ActionBtn
                               id={program.id}
-                              onClick={() =>
-                                handleToggleProgram(
-                                  program.id,
-                                  program.isPublished,
-                                )
-                              }
-                              color={
-                                program.isPublished
-                                  ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              }
+                              onClick={() => handleToggleProgram(program.id, program.isPublished)}
+                              color={program.isPublished ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}
                             >
-                              {program.isPublished ? (
-                                <>
-                                  <EyeOff className="h-3.5 w-3.5" />
-                                  Unpublish
-                                </>
-                              ) : (
-                                <>
-                                  <Eye className="h-3.5 w-3.5" />
-                                  Publish
-                                </>
-                              )}
+                              {program.isPublished ? <><EyeOff className="h-3.5 w-3.5" />Unpublish</> : <><Eye className="h-3.5 w-3.5" />Publish</>}
                             </ActionBtn>
-                            <ActionBtn
-                              id={`del-${program.id}`}
-                              onClick={() => handleDeleteProgram(program.id)}
-                              color="bg-red-50 text-red-700 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                            <ActionBtn id={`del-${program.id}`} onClick={() => handleDeleteProgram(program.id)} color="bg-red-50 text-red-700 hover:bg-red-100">
+                              <Trash2 className="h-3.5 w-3.5" />Delete
                             </ActionBtn>
                           </div>
                         </div>
@@ -2381,76 +1801,38 @@ export default function AdminDashboard({
               </div>
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
-                  <p className="text-sm text-slate-500">
-                    {filteredJobs.length} jobs found
-                  </p>
+                  <p className="text-sm text-slate-500">{filteredJobs.length} jobs found</p>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {filteredJobs.length === 0 ? (
-                    <p className="px-6 py-12 text-center text-sm text-slate-500">
-                      No jobs match your search
-                    </p>
+                    <p className="px-6 py-12 text-center text-sm text-slate-500">No jobs match your search</p>
                   ) : (
                     filteredJobs.map((job) => {
-                      const emp = Array.isArray(job.employer)
-                        ? job.employer[0]
-                        : null;
+                      const emp = Array.isArray(job.employer) ? job.employer[0] : null;
                       return (
-                        <div
-                          key={job.id}
-                          className="flex items-center justify-between px-6 py-4"
-                        >
+                        <div key={job.id} className="flex items-center justify-between px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50">
                               <Briefcase className="h-5 w-5 text-orange-600" />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900">
-                                {job.title}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {emp?.companyName ?? "Unknown"} ·{" "}
-                                {job.type.replace("_", " ")} ·{" "}
-                                {new Date(job.createdAt).toLocaleDateString()}
-                              </p>
+                              <p className="font-medium text-slate-900">{job.title}</p>
+                              <p className="text-xs text-slate-500">{emp?.companyName ?? "Unknown"} · {job.type.replace("_", " ")} · {new Date(job.createdAt).toLocaleDateString()}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${job.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
-                            >
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${job.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                               {job.isActive ? "Active" : "Inactive"}
                             </span>
                             <ActionBtn
                               id={job.id}
-                              onClick={() =>
-                                handleToggleJob(job.id, job.isActive)
-                              }
-                              color={
-                                job.isActive
-                                  ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              }
+                              onClick={() => handleToggleJob(job.id, job.isActive)}
+                              color={job.isActive ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}
                             >
-                              {job.isActive ? (
-                                <>
-                                  <EyeOff className="h-3.5 w-3.5" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <Eye className="h-3.5 w-3.5" />
-                                  Activate
-                                </>
-                              )}
+                              {job.isActive ? <><EyeOff className="h-3.5 w-3.5" />Deactivate</> : <><Eye className="h-3.5 w-3.5" />Activate</>}
                             </ActionBtn>
-                            <ActionBtn
-                              id={`del-${job.id}`}
-                              onClick={() => handleDeleteJob(job.id)}
-                              color="bg-red-50 text-red-700 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                            <ActionBtn id={`del-${job.id}`} onClick={() => handleDeleteJob(job.id)} color="bg-red-50 text-red-700 hover:bg-red-100">
+                              <Trash2 className="h-3.5 w-3.5" />Delete
                             </ActionBtn>
                           </div>
                         </div>
@@ -2474,47 +1856,34 @@ export default function AdminDashboard({
                   <Building2 className="h-5 w-5 text-blue-600" />
                 </div>
                 <h2 className="text-base font-bold text-slate-900">
-                  {instModal === "create"
-                    ? "Create New Institution"
-                    : `Edit — ${editingInst?.name}`}
+                  {instModal === "create" ? "Create New Institution" : `Edit — ${editingInst?.name}`}
                 </h2>
               </div>
-              <button
-                onClick={closeInstModal}
-                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              >
+              <button onClick={closeInstModal} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
-
             <form onSubmit={handleInstSubmit} className="space-y-4 p-6">
               <Field label="Institution Name" required>
                 <input
                   type="text"
                   value={instForm.name}
                   placeholder="e.g. University of Colombo"
-                  onChange={(e) =>
-                    setInstForm((f) => ({ ...f, name: e.target.value }))
-                  }
+                  onChange={(e) => setInstForm((f) => ({ ...f, name: e.target.value }))}
                   className={inputCls}
                 />
               </Field>
-
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Type">
                   <div className="relative">
                     <select
                       value={instForm.type}
-                      onChange={(e) =>
-                        setInstForm((f) => ({ ...f, type: e.target.value }))
-                      }
+                      onChange={(e) => setInstForm((f) => ({ ...f, type: e.target.value }))}
                       className={`${inputCls} appearance-none pr-8`}
                     >
                       <option value="">Select type…</option>
                       {INSTITUTION_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
+                        <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -2525,14 +1894,23 @@ export default function AdminDashboard({
                     type="text"
                     value={instForm.country}
                     placeholder="e.g. Sri Lanka"
-                    onChange={(e) =>
-                      setInstForm((f) => ({ ...f, country: e.target.value }))
-                    }
+                    onChange={(e) => setInstForm((f) => ({ ...f, country: e.target.value }))}
                     className={inputCls}
                   />
                 </Field>
               </div>
-
+              <Field label="Email">
+                <div className="relative">
+                  <Mail className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={instForm.email}
+                    placeholder="admin@institution.edu"
+                    onChange={(e) => setInstForm((f) => ({ ...f, email: e.target.value }))}
+                    className={`${inputCls} pl-9`}
+                  />
+                </div>
+              </Field>
               <Field label="Website">
                 <div className="relative">
                   <Globe className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -2540,38 +1918,25 @@ export default function AdminDashboard({
                     type="url"
                     value={instForm.website}
                     placeholder="https://…"
-                    onChange={(e) =>
-                      setInstForm((f) => ({ ...f, website: e.target.value }))
-                    }
+                    onChange={(e) => setInstForm((f) => ({ ...f, website: e.target.value }))}
                     className={`${inputCls} pl-9`}
                   />
                 </div>
               </Field>
-
               <Field label="Description">
                 <textarea
                   value={instForm.description}
                   rows={3}
                   placeholder="Short description…"
-                  onChange={(e) =>
-                    setInstForm((f) => ({ ...f, description: e.target.value }))
-                  }
+                  onChange={(e) => setInstForm((f) => ({ ...f, description: e.target.value }))}
                   className={`${inputCls} resize-none`}
                 />
               </Field>
-
               {instFormError && (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                  {instFormError}
-                </p>
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{instFormError}</p>
               )}
-
               <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeInstModal}
-                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                >
+                <button type="button" onClick={closeInstModal} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
                   Cancel
                 </button>
                 <button
@@ -2579,18 +1944,16 @@ export default function AdminDashboard({
                   disabled={instFormLoading}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                 >
-                  {instFormLoading && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  {instModal === "create"
-                    ? "Create Institution"
-                    : "Save Changes"}
+                  {instFormLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {instModal === "create" ? "Create Institution" : "Save Changes"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* ══════ SIGN OUT CONFIRM ══════════════════════════════════════════ */}
       {showSignOutConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
@@ -2598,9 +1961,7 @@ export default function AdminDashboard({
               <AlertTriangle className="h-6 w-6" />
               <h3 className="text-lg font-bold text-slate-900">Sign Out?</h3>
             </div>
-            <p className="mb-6 text-slate-600">
-              Are you sure you want to sign out of the admin panel?
-            </p>
+            <p className="mb-6 text-slate-600">Are you sure you want to sign out of the admin panel?</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowSignOutConfirm(false)}

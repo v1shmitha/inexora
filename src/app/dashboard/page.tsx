@@ -11,12 +11,7 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  console.log("User:", user?.id);
-
   if (!user) redirect("/login");
-
-  console.log("Service role key exists:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-  console.log("Key preview:", process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20));
 
   const adminSupabase = createAdminClient();
   const { data: profile, error } = await adminSupabase
@@ -25,9 +20,7 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  console.log("Profile:", profile);
   console.log("Profile error:", error);
-  console.log("Role:", profile?.role);
 
   if (!profile) redirect("/login");
 
