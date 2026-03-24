@@ -5,6 +5,7 @@ import { courseRouter } from "~/server/api/routers/course";
 import { studentRouter } from "~/server/api/routers/student";
 import { assessmentRouter } from "~/server/api/routers/assessment";
 import { courseResourceRouter } from "~/server/api/routers/courseResource";
+import { libraryResourceRouter } from "~/server/api/routers/libraryResource";
 
 export const appRouter = createTRPCRouter({
   program: programRouter,
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   student: studentRouter,
   assessment: assessmentRouter,
   courseResource: courseResourceRouter,
+  libraryResource: libraryResourceRouter,
 });
 
 export type AppRouter = typeof appRouter;

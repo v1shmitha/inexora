@@ -2,21 +2,26 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "~/lib/supabase/admin";
+import { createClient  } from "~/lib/supabase/server";
+import { db } from "~/server/db";
 
 function generateId(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0;
-    const v = c === "x" ? r : (r & 0x3 | 0x8);
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    + "-" + Math.random().toString(36).slice(2, 7);
+  return (
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") +
+    "-" +
+    Math.random().toString(36).slice(2, 7)
+  );
 }
 
 // ── Programs ──────────────────────────────────────────────────────────────
@@ -61,7 +66,9 @@ export async function createProgram(data: {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-    .select("id, title, type, level, isPublished, approvalStatus, createdAt, durationMonths, deliveryMode")
+    .select(
+      "id, title, type, level, isPublished, approvalStatus, createdAt, durationMonths, deliveryMode",
+    )
     .single();
 
   console.log("Program error:", error?.message);
@@ -98,7 +105,9 @@ export async function updateProgram(
       ...(data.deliveryMode && { deliveryMode: data.deliveryMode }),
       ...(data.durationMonths && { durationMonths: data.durationMonths }),
       ...(data.description && { description: data.description }),
-      ...(data.entryRequirements && { entryRequirements: data.entryRequirements }),
+      ...(data.entryRequirements && {
+        entryRequirements: data.entryRequirements,
+      }),
       ...(data.localPrice && { localPrice: data.localPrice }),
       ...(data.foreignPrice && { foreignPrice: data.foreignPrice }),
     })
@@ -109,7 +118,7 @@ export async function updateProgram(
 }
 
 export async function toggleProgram(id: string, current: boolean) {
-  const supabase = createAdminClient();
+  const supabase = createClient();
   const { error } = await supabase
     .from("Program")
     .update({ isPublished: !current })
@@ -129,6 +138,182 @@ export async function deleteProgram(id: string) {
   const { error } = await supabase.from("Program").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/institution");
+}
+
+//  ── Approve/Reject Lecturers ─────────────────────────────────────────────────────────
+
+async function getCurrentUser() {
+  const supabase = await createClient(); // Remove await - createAdminClient is not async
+  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: profile } = await supabase
+    .from("Profile")
+    .select("id, fullName, email, role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) throw new Error("Profile not found");
+
+  // If the user is a lecturer, get their lecturer record
+  let lecturerId = null;
+  if (profile.role === "LECTURER") {
+    const { data: lecturer } = await supabase
+      .from("Lecturer")
+      .select("id")
+      .eq("profileId", profile.id)
+      .single();
+    
+    lecturerId = lecturer?.id ?? null;
+  }
+
+  return {
+    ...profile,
+    lecturerId,
+  };
+}
+
+export async function approveLecturer(lecturerId: string) {
+  const user = await getCurrentUser();
+  
+  const lecturer = await db.lecturer.findUnique({
+    where: { id: lecturerId },
+  });
+
+  if (!lecturer) throw new Error("Lecturer not found");
+
+  // Check if user is ADMIN
+  if (user.role === "ADMIN") {
+    await db.lecturer.update({
+      where: { id: lecturerId },
+      data: { approvalStatus: "APPROVED" },
+    });
+    revalidatePath("/admin");
+    revalidatePath("/institution");
+    return;
+  }
+
+  // Check if user is an INSTITUTION account managing this institution
+  if (user.role === "INSTITUTION") {
+    const account = await db.institutionAccount.findFirst({
+      where: {
+        profileId: user.id,
+        institutionId: lecturer.institutionId
+      }
+    });
+
+    if (!account) {
+      throw new Error("Unauthorized: You do not manage this institution");
+    }
+
+    await db.lecturer.update({
+      where: { id: lecturerId },
+      data: { approvalStatus: "APPROVED" },
+    });
+
+    revalidatePath("/institution");
+    return;
+  }
+
+  throw new Error("Unauthorized");
+}
+
+export async function rejectLecturer(lecturerId: string) {
+  const user = await getCurrentUser();
+  
+  const lecturer = await db.lecturer.findUnique({
+    where: { id: lecturerId }
+  });
+
+  if (!lecturer) throw new Error("Lecturer not found");
+
+  // Check if user is ADMIN
+  if (user.role === "ADMIN") {
+    await db.lecturer.update({
+      where: { id: lecturerId },
+      data: { approvalStatus: "REJECTED" }
+    });
+    revalidatePath("/admin");
+    revalidatePath("/institution");
+    return;
+  }
+
+  // Check if user is an INSTITUTION account managing this institution
+  if (user.role === "INSTITUTION") {
+    const account = await db.institutionAccount.findFirst({
+      where: {
+        profileId: user.id,
+        institutionId: lecturer.institutionId
+      }
+    });
+
+    if (!account) {
+      throw new Error("Unauthorized: You do not manage this institution");
+    }
+
+    await db.lecturer.update({
+      where: { id: lecturerId },
+      data: { approvalStatus: "REJECTED" }
+    });
+
+    revalidatePath("/institution");
+    return;
+  }
+
+  throw new Error("Unauthorized");
+}
+
+export async function reApproveLecturer(lecturerId: string) {
+  const user = await getCurrentUser();
+  
+  const lecturer = await db.lecturer.findUnique({
+    where: { id: lecturerId }
+  });
+
+  if (!lecturer) throw new Error("Lecturer not found");
+  
+  if (lecturer.approvalStatus !== "REJECTED") {
+    throw new Error("Lecturer is not in rejected status");
+  }
+
+  // Check if user is ADMIN
+  if (user.role === "ADMIN") {
+    await db.lecturer.update({
+      where: { id: lecturerId },
+      data: { approvalStatus: "APPROVED" }
+    });
+    revalidatePath("/admin");
+    revalidatePath("/institution");
+    return;
+  }
+
+  // Check if user is an INSTITUTION account managing this institution
+  if (user.role === "INSTITUTION") {
+    const account = await db.institutionAccount.findFirst({
+      where: {
+        profileId: user.id,
+        institutionId: lecturer.institutionId
+      }
+    });
+
+    if (!account) {
+      throw new Error("Unauthorized: You do not manage this institution");
+    }
+
+    await db.lecturer.update({
+      where: { id: lecturerId },
+      data: { approvalStatus: "APPROVED" }
+    });
+
+    revalidatePath("/institution");
+    return;
+  }
+
+  throw new Error("Unauthorized");
 }
 
 // ── Announcements ─────────────────────────────────────────────────────────
@@ -165,7 +350,10 @@ export async function toggleAnnouncement(id: string, current: boolean) {
   const update = current
     ? { isPublished: false, publishedAt: null }
     : { isPublished: true, publishedAt: new Date().toISOString() };
-  const { error } = await supabase.from("Announcement").update(update).eq("id", id);
+  const { error } = await supabase
+    .from("Announcement")
+    .update(update)
+    .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/institution");
 }

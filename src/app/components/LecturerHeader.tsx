@@ -19,9 +19,9 @@ const lecturerNavigation = [
   { name: "Dashboard",   path: "/dashboard",                    icon: LayoutDashboard },
   { name: "My Modules",  path: "/dashboard/lecturer/modules",   icon: Layers },
   { name: "My Courses",  path: "/dashboard/lecturer/courses",   icon: GraduationCap },
-  { name: "Resources",   path: "/resources",                    icon: FileText },
-  { name: "Students",    path: "/dashboard/lecturer/students",  icon: Users },
   { name: "Assessments", path: "/dashboard/lecturer/assessments", icon: ClipboardList },
+  { name: "Resources",   path: "/dashboard/lecturer/resources",  icon: FileText },
+  { name: "Students",    path: "/dashboard/lecturer/students",  icon: Users },
 ];
 
 export default function LecturerHeader() {

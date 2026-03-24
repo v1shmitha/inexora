@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
-import { createClient } from "~/lib/supabase/server";
+import { db } from "~/server/db";
 import { createAdminClient } from "~/lib/supabase/admin";
 import InstitutionDashboard from "./components/InstitutionDashboard";
+import { createClient } from "~/lib/supabase/server";
 
 export default async function InstitutionPage() {
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
@@ -21,7 +24,8 @@ export default async function InstitutionPage() {
   // Use admin client to bypass RLS
   const { data: account } = await adminSupabase
     .from("InstitutionAccount")
-    .select(`
+    .select(
+      `
       id,
       institution:Institution(
         id, name, type, description, logoUrl, website,
@@ -40,22 +44,69 @@ export default async function InstitutionPage() {
           id, title, content, isPublished, createdAt
         )
       )
-    `)
+    `,
+    )
     .eq("profileId", user.id)
     .single();
 
   if (!account?.institution) redirect("/login");
 
+  // Extract institution BEFORE using it
   const institution = Array.isArray(account.institution)
     ? account.institution[0]
     : account.institution;
 
   if (!institution) redirect("/login");
 
+  // NOW fetch pending and rejected lecturers using institution.id
+  const pendingLecturers = await db.lecturer.findMany({
+  where: {
+    institutionId: institution.id,
+    approvalStatus: "PENDING",
+  },
+  select: {
+    id: true,
+    title: true,
+    specialization: true,
+    createdAt: true,
+    profile: {
+      select: { 
+        fullName: true, 
+        email: true 
+      },
+    },
+  },
+  orderBy: { createdAt: "desc" },
+});
+
+const rejectedLecturers = await db.lecturer.findMany({
+  where: {
+    institutionId: institution.id,
+    approvalStatus: "REJECTED",
+  },
+  select: {
+    id: true,
+    profileId: true,
+    title: true,
+    specialization: true,
+    createdAt: true,
+    updatedAt: true,
+    profile: {
+      select: { 
+        fullName: true, 
+        email: true 
+      },
+    },
+  },
+  orderBy: { updatedAt: "desc" },
+});
+
   return (
     <InstitutionDashboard
       profile={profile}
       institution={institution}
+      pendingLecturers={pendingLecturers}
+      rejectedLecturers={rejectedLecturers}
     />
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { uploadCourseResource, detectResourceType, formatFileSize } from "~/lib/courseStorage";
+import ContentTab from "~/app/dashboard/lecturer/_components/ContentTab";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ type Tab = "overview" | "resources" | "assessments" | "students";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "overview",    label: "Overview",    icon: <BookOpen className="h-4 w-4" /> },
-  { id: "resources",   label: "Resources",   icon: <FileText className="h-4 w-4" /> },
+  { id: "resources",   label: "Content",     icon: <FileText className="h-4 w-4" /> },
   { id: "assessments", label: "Assessments", icon: <ClipboardList className="h-4 w-4" /> },
   { id: "students",    label: "Students",    icon: <Users className="h-4 w-4" /> },
 ];
@@ -327,75 +328,9 @@ export default function ModuleDetailPage() {
           </div>
         )}
 
-        {/* ════ RESOURCES ════ */}
+        {/* ════ CONTENT (Sections + Resources) ════ */}
         {activeTab === "resources" && (
-          <div>
-            {uploadError && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />{uploadError}
-                <button onClick={() => setUploadError(null)} className="ml-auto"><X className="h-4 w-4" /></button>
-              </div>
-            )}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="font-bold text-slate-900">Module Resources</h2>
-                <p className="text-sm text-slate-500">{resources.length} resource{resources.length !== 1 ? "s" : ""}</p>
-              </div>
-              <div className="flex gap-2">
-                <input ref={fileInputRef} type="file" accept=".pdf,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.avi,.mkv" className="hidden" onChange={handleFileUpload} />
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  {uploading ? "Uploading…" : "Upload File"}
-                </button>
-                <button onClick={() => setLinkModal(true)}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  <Link2 className="h-4 w-4" /> Add Link
-                </button>
-              </div>
-            </div>
-
-            {resourcesLoading ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
-            ) : resources.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white py-20 text-center">
-                <FileText className="mx-auto mb-4 h-12 w-12 text-slate-200" />
-                <p className="font-medium text-slate-600">No resources yet</p>
-                <p className="mt-1 text-sm text-slate-400">Upload lecture notes, recordings, or add external links.</p>
-                <div className="mt-6 flex justify-center gap-3">
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Upload className="h-4 w-4" /> Upload File</button>
-                  <button onClick={() => setLinkModal(true)} className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Link2 className="h-4 w-4" /> Add Link</button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {resources.map((r, index) => (
-                  <div key={r.id} className={`flex items-center gap-4 rounded-xl border bg-white px-5 py-4 shadow-sm ${!r.isPublished ? "opacity-60 border-slate-100" : "border-slate-200"}`}>
-                    <span className="w-5 text-center text-xs font-semibold text-slate-400">{index + 1}</span>
-                    <GripVertical className="h-4 w-4 flex-shrink-0 cursor-grab text-slate-300" />
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-50 shadow-sm">{RESOURCE_ICONS[r.type]}</div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-slate-900">{r.title}</p>
-                      <div className="flex items-center gap-3 text-xs text-slate-400">
-                        <span>{RESOURCE_LABELS[r.type]}</span>
-                        {r.sizeBytes && <span>{formatFileSize(r.sizeBytes)}</span>}
-                        {!r.isPublished && <span className="text-amber-500">Hidden</span>}
-                      </div>
-                    </div>
-                    <div className="flex flex-shrink-0 items-center gap-1">
-                      {(r.fileUrl ?? r.externalUrl) && (
-                        <a href={r.fileUrl ?? r.externalUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-blue-600" title="Open"><ExternalLink className="h-4 w-4" /></a>
-                      )}
-                      <button onClick={() => toggleResource.mutate({ id: r.id })} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">{r.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
-                      <button onClick={() => { if (confirm("Delete this resource?")) deleteResource.mutate({ id: r.id }); }} disabled={deleteResource.isPending} className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ContentTab courseId={courseId ?? ""} />
         )}
 
         {/* ════ ASSESSMENTS ════ */}

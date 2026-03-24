@@ -4,14 +4,9 @@ import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
 
 const RESOURCE_TYPES = ["PDF", "VIDEO_UPLOAD", "VIDEO_LINK", "IMAGE", "PRESENTATION", "EXTERNAL_LINK"] as const;
 
-// ── Helper: verify lecturer has access to the course ──────────────────────
 async function assertCourseAccess(db: any, courseId: string, lecturerId: string) {
-  const assignment = await db.courseLecturer.findFirst({
-    where: { courseId, lecturerId },
-  });
-  const owned = await db.course.findFirst({
-    where: { id: courseId, createdById: lecturerId },
-  });
+  const assignment = await db.courseLecturer.findFirst({ where: { courseId, lecturerId } });
+  const owned = await db.course.findFirst({ where: { id: courseId, createdById: lecturerId } });
   if (!assignment && !owned) {
     throw new TRPCError({ code: "FORBIDDEN", message: "You don't have access to this course" });
   }
@@ -19,21 +14,81 @@ async function assertCourseAccess(db: any, courseId: string, lecturerId: string)
 
 export const courseResourceRouter = createTRPCRouter({
 
-  // ── GET: all resources for a course ──────────────────────────────────────
-  getByCourse: lecturerProcedure
+  // ── SECTIONS ──────────────────────────────────────────────────────────────
+
+  getSections: lecturerProcedure
     .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
       await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
-      return ctx.db.courseResource.findMany({
+      return ctx.db.courseSection.findMany({
         where: { courseId: input.courseId },
+        include: {
+          resources: { orderBy: { orderIndex: "asc" } },
+        },
         orderBy: { orderIndex: "asc" },
       });
     }),
 
-  // ── CREATE: add a resource to a course ───────────────────────────────────
+  createSection: lecturerProcedure
+    .input(z.object({
+      courseId:     z.string(),
+      title:        z.string().min(1),
+      description:  z.string().optional().nullable(),
+      instructions: z.string().optional().nullable(),
+      orderIndex:   z.number().int().min(0).default(0),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
+      return ctx.db.courseSection.create({ data: input });
+    }),
+
+  updateSection: lecturerProcedure
+    .input(z.object({
+      id:           z.string(),
+      title:        z.string().min(1).optional(),
+      description:  z.string().optional().nullable(),
+      instructions: z.string().optional().nullable(),
+      orderIndex:   z.number().int().min(0).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      const section = await ctx.db.courseSection.findUnique({ where: { id } });
+      if (!section) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertCourseAccess(ctx.db, section.courseId, ctx.lecturer.id);
+      return ctx.db.courseSection.update({ where: { id }, data });
+    }),
+
+  deleteSection: lecturerProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const section = await ctx.db.courseSection.findUnique({ where: { id: input.id } });
+      if (!section) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertCourseAccess(ctx.db, section.courseId, ctx.lecturer.id);
+      await ctx.db.courseResource.deleteMany({ where: { sectionId: input.id } });
+      return ctx.db.courseSection.delete({ where: { id: input.id } });
+    }),
+
+  reorderSections: lecturerProcedure
+    .input(z.object({
+      courseId: z.string(),
+      items: z.array(z.object({ id: z.string(), orderIndex: z.number().int().min(0) })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
+      await Promise.all(
+        input.items.map((item) =>
+          ctx.db.courseSection.update({ where: { id: item.id }, data: { orderIndex: item.orderIndex } }),
+        ),
+      );
+      return { success: true };
+    }),
+
+  // ── RESOURCES ─────────────────────────────────────────────────────────────
+
   create: lecturerProcedure
     .input(z.object({
       courseId:    z.string(),
+      sectionId:   z.string().optional().nullable(),
       title:       z.string().min(1),
       type:        z.enum(RESOURCE_TYPES),
       fileUrl:     z.string().url().optional().nullable(),
@@ -41,24 +96,21 @@ export const courseResourceRouter = createTRPCRouter({
       description: z.string().optional().nullable(),
       orderIndex:  z.number().int().min(0).default(0),
       isPublished: z.boolean().default(true),
-      sizeBytes:   z.number().int().optional().nullable(),
-      mimeType:    z.string().optional().nullable(),
+      sizeBytes:    z.number().int().optional().nullable(),
+      mimeType:     z.string().optional().nullable(),
+      durationMins: z.number().int().min(1).optional().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
       await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
-
-      // Validate that URL type has the right field
       if (["VIDEO_LINK", "EXTERNAL_LINK"].includes(input.type) && !input.externalUrl) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "External URL is required for this resource type" });
       }
       if (["PDF", "VIDEO_UPLOAD", "IMAGE", "PRESENTATION"].includes(input.type) && !input.fileUrl) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "File URL is required for this resource type" });
       }
-
       return ctx.db.courseResource.create({ data: input });
     }),
 
-  // ── UPDATE ────────────────────────────────────────────────────────────────
   update: lecturerProcedure
     .input(z.object({
       id:          z.string(),
@@ -68,6 +120,7 @@ export const courseResourceRouter = createTRPCRouter({
       fileUrl:     z.string().url().optional().nullable(),
       orderIndex:  z.number().int().min(0).optional(),
       isPublished: z.boolean().optional(),
+      sectionId:   z.string().optional().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
@@ -77,36 +130,6 @@ export const courseResourceRouter = createTRPCRouter({
       return ctx.db.courseResource.update({ where: { id }, data });
     }),
 
-  // ── REORDER: update orderIndex for multiple resources at once ─────────────
-  reorder: lecturerProcedure
-    .input(z.object({
-      courseId: z.string(),
-      items: z.array(z.object({ id: z.string(), orderIndex: z.number().int().min(0) })),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
-      await Promise.all(
-        input.items.map((item) =>
-          ctx.db.courseResource.update({
-            where: { id: item.id },
-            data: { orderIndex: item.orderIndex },
-          }),
-        ),
-      );
-      return { success: true };
-    }),
-
-  // ── DELETE ────────────────────────────────────────────────────────────────
-  delete: lecturerProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const resource = await ctx.db.courseResource.findUnique({ where: { id: input.id } });
-      if (!resource) throw new TRPCError({ code: "NOT_FOUND" });
-      await assertCourseAccess(ctx.db, resource.courseId, ctx.lecturer.id);
-      return ctx.db.courseResource.delete({ where: { id: input.id } });
-    }),
-
-  // ── TOGGLE PUBLISH ────────────────────────────────────────────────────────
   togglePublish: lecturerProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -117,5 +140,40 @@ export const courseResourceRouter = createTRPCRouter({
         where: { id: input.id },
         data: { isPublished: !resource.isPublished },
       });
+    }),
+
+  delete: lecturerProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const resource = await ctx.db.courseResource.findUnique({ where: { id: input.id } });
+      if (!resource) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertCourseAccess(ctx.db, resource.courseId, ctx.lecturer.id);
+      return ctx.db.courseResource.delete({ where: { id: input.id } });
+    }),
+
+  // Legacy — kept for backward compat
+  getByCourse: lecturerProcedure
+    .input(z.object({ courseId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
+      return ctx.db.courseResource.findMany({
+        where: { courseId: input.courseId },
+        orderBy: { orderIndex: "asc" },
+      });
+    }),
+
+  reorder: lecturerProcedure
+    .input(z.object({
+      courseId: z.string(),
+      items: z.array(z.object({ id: z.string(), orderIndex: z.number().int().min(0) })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCourseAccess(ctx.db, input.courseId, ctx.lecturer.id);
+      await Promise.all(
+        input.items.map((item) =>
+          ctx.db.courseResource.update({ where: { id: item.id }, data: { orderIndex: item.orderIndex } }),
+        ),
+      );
+      return { success: true };
     }),
 });
