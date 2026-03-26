@@ -2,39 +2,51 @@
 
 import { createAdminClient } from "~/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { db } from "~/server/db";
 
 // ── Users ──────────────────────────────────────────────────────────────────
 
-export async function suspendUser(id: string) {
+export async function suspendUser(profileId: string) {
   const supabase = createAdminClient();
 
-  const { error: profileError } = await supabase
-    .from("Profile")
-    .update({ isActive: false })
-    .eq("id", id);
-  if (profileError) throw new Error(profileError.message);
+  // Suspend the profile
+  await db.profile.update({
+    where: { id: profileId },
+    data: { isActive: false },
+  });
 
-  const { error: banError } = await supabase.auth.admin.updateUserById(id, {
+  // If this user is a lecturer, sync their approvalStatus too
+  await db.lecturer.updateMany({
+    where: { profileId },
+    data: { approvalStatus: "SUSPENDED" },
+  });
+
+  // Block login
+  await supabase.auth.admin.updateUserById(profileId, {
     ban_duration: "876600h",
   });
-  if (banError) throw new Error(banError.message);
 
   revalidatePath("/admin");
 }
 
-export async function reactivateUser(id: string) {
+export async function reactivateUser(profileId: string) {
   const supabase = createAdminClient();
 
-  const { error: profileError } = await supabase
-    .from("Profile")
-    .update({ isActive: true })
-    .eq("id", id);
-  if (profileError) throw new Error(profileError.message);
+  await db.profile.update({
+    where: { id: profileId },
+    data: { isActive: true },
+  });
 
-  const { error: banError } = await supabase.auth.admin.updateUserById(id, {
+  // If lecturer, restore approvalStatus
+  await db.lecturer.updateMany({
+    where: { profileId },
+    data: { approvalStatus: "APPROVED" },
+  });
+
+  // Unban
+  await supabase.auth.admin.updateUserById(profileId, {
     ban_duration: "none",
   });
-  if (banError) throw new Error(banError.message);
 
   revalidatePath("/admin");
 }

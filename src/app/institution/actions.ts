@@ -316,6 +316,124 @@ export async function reApproveLecturer(lecturerId: string) {
   throw new Error("Unauthorized");
 }
 
+// ── Suspend / Delete Lecturer (Institution) ───────────────────────────────
+
+export async function suspendLecturer(lecturerId: string) {
+  const user = await getCurrentUser();
+  const supabase = createAdminClient();
+
+  const lecturer = await db.lecturer.findUnique({
+    where: { id: lecturerId },
+    include: { profile: { select: { id: true } } },
+  });
+  if (!lecturer) throw new Error("Lecturer not found");
+
+  const authorized =
+    user.role === "ADMIN" ||
+    (user.role === "INSTITUTION" &&
+      !!(await db.institutionAccount.findFirst({
+        where: { profileId: user.id, institutionId: lecturer.institutionId },
+      })));
+  if (!authorized) throw new Error("Unauthorized");
+
+  const authUserId = lecturer.profileId;
+
+  // Sync both tables
+  await db.lecturer.update({
+    where: { id: lecturerId },
+    data: { approvalStatus: "SUSPENDED" },
+  });
+  await db.profile.update({
+    where: { id: authUserId },
+    data: { isActive: false },
+  });
+
+  // Block login via Supabase Auth
+  await supabase.auth.admin.updateUserById(authUserId, {
+    ban_duration: "876600h",
+  });
+
+  revalidatePath("/institution");
+  revalidatePath("/admin");
+}
+
+export async function reinstateLecturer(lecturerId: string) {
+  const user = await getCurrentUser();
+  const supabase = createAdminClient();
+
+  const lecturer = await db.lecturer.findUnique({
+    where: { id: lecturerId },
+    include: { profile: { select: { id: true } } },
+  });
+  if (!lecturer) throw new Error("Lecturer not found");
+
+  const authorized =
+    user.role === "ADMIN" ||
+    (user.role === "INSTITUTION" &&
+      !!(await db.institutionAccount.findFirst({
+        where: { profileId: user.id, institutionId: lecturer.institutionId },
+      })));
+  if (!authorized) throw new Error("Unauthorized");
+
+  const authUserId = lecturer.profileId;
+
+  // Sync both tables
+  await db.lecturer.update({
+    where: { id: lecturerId },
+    data: { approvalStatus: "APPROVED" },
+  });
+  await db.profile.update({
+    where: { id: authUserId },
+    data: { isActive: true },
+  });
+
+  // Restore login
+  await supabase.auth.admin.updateUserById(authUserId, {
+    ban_duration: "none",
+  });
+
+  revalidatePath("/institution");
+  revalidatePath("/admin");
+}
+
+export async function deleteLecturer(lecturerId: string) {
+  const user = await getCurrentUser();
+  const supabase = createAdminClient();
+
+  const lecturer = await db.lecturer.findUnique({
+    where: { id: lecturerId },
+    include: { profile: { select: { id: true } } },
+  });
+  if (!lecturer) throw new Error("Lecturer not found");
+
+  const authorized =
+    user.role === "ADMIN" ||
+    (user.role === "INSTITUTION" &&
+      !!(await db.institutionAccount.findFirst({
+        where: { profileId: user.id, institutionId: lecturer.institutionId },
+      })));
+  if (!authorized) throw new Error("Unauthorized");
+
+  const authUserId = lecturer.profile?.id ?? lecturer.profileId;
+
+  // 1. Clean up related records first
+  await db.courseLecturer.deleteMany({ where: { lecturerId } });
+  await db.institutionManager.deleteMany({ where: { lecturerId } });
+
+  // 2. Delete the Lecturer row
+  await db.lecturer.delete({ where: { id: lecturerId } });
+
+  // 3. Delete the Profile row
+  await db.profile.delete({ where: { id: authUserId } });
+
+  // 4. Delete the Supabase Auth user — blocks all future logins
+  const { error } = await supabase.auth.admin.deleteUser(authUserId);
+  if (error) throw new Error(`Auth delete failed: ${error.message}`);
+
+  revalidatePath("/institution");
+  revalidatePath("/admin");
+}
+
 // ── Announcements ─────────────────────────────────────────────────────────
 
 export async function createAnnouncement(data: {

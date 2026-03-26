@@ -375,6 +375,16 @@ export default function AdminDashboard({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [suspendConfirm, setSuspendConfirm] = useState<{
+    id: string;
+    name: string;
+    isActive: boolean;
+  } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("ALL");
   const [instSearch, setInstSearch] = useState("");
@@ -456,19 +466,31 @@ export default function AdminDashboard({
     router.push("/");
   };
 
-  const handleSuspendUser = (id: string, isActive: boolean) =>
+  const handleSuspendUser = (id: string, isActive: boolean, name: string) => {
+    setSuspendConfirm({ id, name, isActive });
+  };
+
+  // Add a function to actually perform the suspension after confirmation
+  const performSuspendUser = (id: string, isActive: boolean) => {
     run(
       id,
       () => (isActive ? suspendUser(id) : reactivateUser(id)),
-      () =>
+      () => {
         setUsers((p) =>
           p.map((u) => (u.id === id ? { ...u, isActive: !isActive } : u)),
-        ),
+        );
+        setSuspendConfirm(null);
+      },
     );
+  };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm("Permanently delete this user? This cannot be undone."))
-      return;
+  // Update the handleDeleteUser function to use confirmation
+  const handleDeleteUser = (id: string, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  // Add function to actually perform deletion
+  const performDeleteUser = async (id: string) => {
     run(
       `del-${id}`,
       () => deleteUser(id),
@@ -476,6 +498,7 @@ export default function AdminDashboard({
         setUsers((p) => p.filter((u) => u.id !== id));
         setRejectedLecturers((p) => p.filter((l) => l.profileId !== id));
         setRejectedEmployers((p) => p.filter((e) => e.profileId !== id));
+        setDeleteConfirm(null);
       },
     );
   };
@@ -1344,7 +1367,6 @@ export default function AdminDashboard({
                     <option value="ALL">All Roles</option>
                     <option value="STUDENT">Student</option>
                     <option value="LECTURER">Lecturer</option>
-                    <option value="INSTITUTION">Institution</option>
                     <option value="EMPLOYER">Employer</option>
                     <option value="ADMIN">Admin</option>
                   </select>
@@ -1385,6 +1407,7 @@ export default function AdminDashboard({
                             </p>
                           </div>
                         </div>
+                        {/* In the Users tab, replace the ActionBtn section for suspend/reactivate and delete */}
                         <div className="flex items-center gap-3">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-medium ${roleColors[u.role ?? ""] ?? "bg-slate-100 text-slate-600"}`}
@@ -1392,7 +1415,7 @@ export default function AdminDashboard({
                             {u.role ?? "unknown"}
                           </span>
                           {!u.isActive && (
-                            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-600">
+                            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
                               Suspended
                             </span>
                           )}
@@ -1401,39 +1424,49 @@ export default function AdminDashboard({
                               You
                             </span>
                           ) : (
-                            <ActionBtn
-                              id={u.id}
-                              onClick={() =>
-                                handleSuspendUser(u.id, u.isActive)
-                              }
-                              color={
-                                u.isActive
-                                  ? "bg-red-50 text-red-700 hover:bg-red-100"
-                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              }
-                            >
-                              {u.isActive ? (
-                                <>
-                                  <UserX className="h-3.5 w-3.5" />
-                                  Suspend
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="h-3.5 w-3.5" />
-                                  Reactivate
-                                </>
-                              )}
-                            </ActionBtn>
-                          )}
-                          {u.id !== currentUserId && (
-                            <ActionBtn
-                              id={`del-${u.id}`}
-                              onClick={() => handleDeleteUser(u.id)}
-                              color="bg-red-600 text-white hover:bg-red-700"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
-                            </ActionBtn>
+                            <>
+                              {/* Suspend/Reinstate button - now opens confirmation modal */}
+                              <button
+                                onClick={() =>
+                                  handleSuspendUser(
+                                    u.id,
+                                    u.isActive,
+                                    u.fullName ?? "this user",
+                                  )
+                                }
+                                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 px-3 py-1.5 text-xs font-semibold transition ${
+                                  u.isActive
+                                    ? "border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:bg-amber-100 hover:text-amber-700"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                }`}
+                              >
+                                {u.isActive ? (
+                                  <>
+                                    <UserX className="h-3.5 w-3.5" />
+                                    Suspend
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="h-3.5 w-3.5" />
+                                    Reinstate
+                                  </>
+                                )}
+                              </button>
+
+                              {/* Delete button - now opens confirmation modal */}
+                              <button
+                                onClick={() =>
+                                  handleDeleteUser(
+                                    u.id,
+                                    u.fullName ?? "this user",
+                                  )
+                                }
+                                className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-100 hover:text-red-600"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1601,6 +1634,127 @@ export default function AdminDashboard({
                   );
                 })}
               </ApprovalSection>
+            </div>
+          )}
+
+          {/* ══════ SUSPEND/REINSTATE USER CONFIRM ════════════════════════════════ */}
+          {suspendConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                      suspendConfirm.isActive
+                        ? "bg-amber-100"
+                        : "bg-emerald-100"
+                    }`}
+                  >
+                    {suspendConfirm.isActive ? (
+                      <UserX className="h-5 w-5 text-amber-600" />
+                    ) : (
+                      <UserCheck className="h-5 w-5 text-emerald-600" />
+                    )}
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {suspendConfirm.isActive
+                      ? "Suspend User?"
+                      : "Reinstate User?"}
+                  </h3>
+                </div>
+                <p className="mb-6 text-sm text-slate-600">
+                  {suspendConfirm.isActive ? (
+                    <>
+                      Suspend{" "}
+                      <span className="font-semibold text-slate-900">
+                        {suspendConfirm.name}
+                      </span>
+                      ? They will lose access to the platform until reinstated.
+                    </>
+                  ) : (
+                    <>
+                      Reinstate{" "}
+                      <span className="font-semibold text-slate-900">
+                        {suspendConfirm.name}
+                      </span>
+                      ? They will regain access to the platform.
+                    </>
+                  )}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setSuspendConfirm(null)}
+                    className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() =>
+                      performSuspendUser(
+                        suspendConfirm.id,
+                        suspendConfirm.isActive,
+                      )
+                    }
+                    disabled={loadingId === suspendConfirm.id}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${
+                      suspendConfirm.isActive
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : "bg-emerald-600 hover:bg-emerald-700"
+                    }`}
+                  >
+                    {loadingId === suspendConfirm.id && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    {suspendConfirm.isActive
+                      ? "Yes, Suspend"
+                      : "Yes, Reinstate"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════ DELETE USER CONFIRM ═══════════════════════════════════════════ */}
+          {deleteConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                    <Trash2 className="h-5 w-5 text-red-600" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Delete User?
+                  </h3>
+                </div>
+                <p className="mb-2 text-sm text-slate-600">
+                  Permanently delete{" "}
+                  <span className="font-semibold text-slate-900">
+                    {deleteConfirm.name}
+                  </span>
+                  ?
+                </p>
+                <p className="mb-6 text-xs text-red-500">
+                  This action cannot be undone. All user data will be
+                  permanently removed.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => performDeleteUser(deleteConfirm.id)}
+                    disabled={loadingId === `del-${deleteConfirm.id}`}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {loadingId === `del-${deleteConfirm.id}` && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    Yes, Delete Permanently
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

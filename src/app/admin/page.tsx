@@ -96,11 +96,11 @@ export default async function AdminPage() {
     if (u.role === "STUDENT" || u.role === "ADMIN") return true;
     if (u.role === "LECTURER") {
       const lec = Array.isArray(u.lecturer) ? u.lecturer[0] : null;
-      return lec?.approvalStatus === "APPROVED";
+      return lec?.approvalStatus === "APPROVED" || lec?.approvalStatus === "SUSPENDED";
     }
     if (u.role === "EMPLOYER") {
       const emp = Array.isArray(u.employer) ? u.employer[0] : null;
-      return emp?.approvalStatus === "APPROVED";
+      return emp?.approvalStatus === "APPROVED" || emp?.approvalStatus === "SUSPENDED";
     }
     return false;
   });
