@@ -4,32 +4,105 @@ import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
 
 export const courseRouter = createTRPCRouter({
 
+  // Add this to your courseRouter
+getById: lecturerProcedure
+  .input(z.object({ id: z.string() }))
+  .query(async ({ ctx, input }) => {
+    const { db, lecturer } = ctx;
+    
+    const course = await db.course.findUnique({
+      where: { id: input.id },
+      include: {
+        program: {
+          include: {
+            institution: {
+              select: { name: true },
+            },
+          },
+        },
+        _count: {
+          select: { 
+            courseEnrollments: true,
+            assessments: true,
+            courseLecturers: true,
+          },
+        },
+        courseLecturers: {
+          include: {
+            lecturer: {
+              include: {
+                profile: {
+                  select: { fullName: true, email: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    
+    if (!course) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Course not found" });
+    }
+    
+    // Verify the lecturer has access to this course
+    const hasAccess = course.courseLecturers.some(
+      (cl) => cl.lecturerId === lecturer.id
+    );
+    
+    if (!hasAccess && course.createdById !== lecturer.id) {
+      throw new TRPCError({ 
+        code: "FORBIDDEN", 
+        message: "You don't have access to this course" 
+      });
+    }
+    
+    return course;
+  }),
+
   // ── GET: modules assigned to this lecturer ────────────────────────────────
   getMyModules: lecturerProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db.courseLecturer.findMany({
-      where: { lecturerId: ctx.lecturer.id },
+    const { db, lecturer } = ctx;
+    
+    const modules = await db.courseLecturer.findMany({
+      where: {
+        lecturerId: lecturer.id,
+        course: {
+          program: {
+            isPublished: true,
+            isActive: true,
+            approvalStatus: "APPROVED"
+          }
+        }
+      },
       include: {
         course: {
           include: {
             program: {
-              select: { id: true, title: true, type: true, field: true },
+              select: {
+                id: true,
+                title: true,
+                field: true,
+                isPublished: true,
+                isActive: true,
+                approvalStatus: true,
+              }
             },
-            assessments: { select: { id: true } },
-            courseEnrollments: { select: { id: true, status: true } },
-          },
-        },
+            courseEnrollments: {
+              select: { id: true }
+            },
+            assessments: {
+              select: { id: true }
+            },
+          }
+        }
       },
-      orderBy: { assignedAt: "desc" },
+      orderBy: {
+        assignedAt: "desc"  // Use assignedAt instead of createdAt
+      }
     });
-
-    return rows
-      .filter((r) => !r.course.isStandalone)
-      .map((r) => ({
-        courseLecturerId: r.id,
-        role: r.role,
-        assignedAt: r.assignedAt,
-        course: r.course,
-      }));
+    
+    return modules;
   }),
 
   // ── GET: standalone courses created by this lecturer ──────────────────────
@@ -96,23 +169,61 @@ export const courseRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const program = await ctx.db.program.findUnique({
         where: { id: input.programId },
-        select: { institutionId: true, approvalStatus: true },
+        select: { 
+          institutionId: true, 
+          approvalStatus: true,
+          isPublished: true,
+          isActive: true 
+        },
       });
-      if (!program) throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
-      if (program.institutionId !== ctx.lecturer.institutionId) throw new TRPCError({ code: "FORBIDDEN", message: "Program does not belong to your institution" });
-      if (program.approvalStatus !== "APPROVED") throw new TRPCError({ code: "FORBIDDEN", message: "Can only add modules to approved programs" });
+      
+      if (!program) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+      
+      if (program.institutionId !== ctx.lecturer.institutionId) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "Program does not belong to your institution" 
+        });
+      }
+      
+      if (program.approvalStatus !== "APPROVED") {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "Can only add modules to approved programs" 
+        });
+      }
+      
+      if (!program.isPublished) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "Cannot add modules to unpublished programs" 
+        });
+      }
 
       const course = await ctx.db.course.create({
         data: {
-          ...input,
+          title: input.title,
+          code: input.code,
+          description: input.description,
+          isMandatory: input.isMandatory,
+          orderIndex: input.orderIndex,
+          programId: input.programId,
           isStandalone: false,
           isPublished: false,
           createdById: ctx.lecturer.id,
         },
       });
+      
       await ctx.db.courseLecturer.create({
-        data: { courseId: course.id, lecturerId: ctx.lecturer.id, role: "LECTURER" },
+        data: { 
+          courseId: course.id, 
+          lecturerId: ctx.lecturer.id, 
+          role: "LECTURER" 
+        },
       });
+      
       return course;
     }),
 
@@ -131,15 +242,40 @@ export const courseRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      
       const course = await ctx.db.course.findUnique({
         where: { id },
-        include: { courseLecturers: { select: { lecturerId: true } } },
+        include: { 
+          courseLecturers: { select: { lecturerId: true } },
+          program: { select: { isPublished: true } }
+        },
       });
-      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      
+      if (!course) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Course not found" });
+      }
+      
       const isCreator = course.createdById === ctx.lecturer.id;
       const isAssigned = course.courseLecturers.some((cl) => cl.lecturerId === ctx.lecturer.id);
-      if (!isCreator && !isAssigned) throw new TRPCError({ code: "FORBIDDEN", message: "You can only edit courses you created" });
-      return ctx.db.course.update({ where: { id }, data });
+      
+      if (!isCreator && !isAssigned) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "You can only edit courses you created or are assigned to" 
+        });
+      }
+      
+      if (course.programId && !course.program?.isPublished) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "Cannot edit modules from unpublished programs" 
+        });
+      }
+      
+      return ctx.db.course.update({ 
+        where: { id }, 
+        data 
+      });
     }),
 
   // ── TOGGLE PUBLISH ────────────────────────────────────────────────────────
@@ -148,13 +284,34 @@ export const courseRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const course = await ctx.db.course.findUnique({
         where: { id: input.id },
-        include: { courseLecturers: { select: { lecturerId: true } } },
+        include: { 
+          courseLecturers: { select: { lecturerId: true } },
+          program: { select: { isPublished: true } }
+        },
       });
-      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      
+      if (!course) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Course not found" });
+      }
+      
       const isCreator = course.createdById === ctx.lecturer.id;
       const isAssigned = course.courseLecturers.some((cl) => cl.lecturerId === ctx.lecturer.id);
-      if (!isCreator && !isAssigned) throw new TRPCError({ code: "FORBIDDEN" });
-      return ctx.db.course.update({ where: { id: input.id }, data: { isPublished: !course.isPublished } });
+      
+      if (!isCreator && !isAssigned) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to publish/unpublish this course" });
+      }
+      
+      if (course.programId && !course.program?.isPublished && !course.isPublished) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "Cannot publish module because its program is unpublished" 
+        });
+      }
+      
+      return ctx.db.course.update({ 
+        where: { id: input.id }, 
+        data: { isPublished: !course.isPublished } 
+      });
     }),
 
   // ── DELETE ────────────────────────────────────────────────────────────────
@@ -163,14 +320,30 @@ export const courseRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const course = await ctx.db.course.findUnique({
         where: { id: input.id },
-        include: { courseLecturers: { select: { lecturerId: true } } },
+        include: { 
+          courseLecturers: { select: { lecturerId: true } },
+          program: { select: { isPublished: true } }
+        },
       });
-      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      
+      if (!course) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Course not found" });
+      }
+      
       const isCreator = course.createdById === ctx.lecturer.id;
       const isAssigned = course.courseLecturers.some((cl) => cl.lecturerId === ctx.lecturer.id);
-      if (!isCreator && !isAssigned) throw new TRPCError({ code: "FORBIDDEN" });
+      
+      if (!isCreator && !isAssigned) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "You can only delete courses you created" 
+        });
+      }
+      
       await ctx.db.courseLecturer.deleteMany({ where: { courseId: input.id } });
       await ctx.db.assessment.deleteMany({ where: { courseId: input.id } });
+      await ctx.db.courseEnrollment.deleteMany({ where: { courseId: input.id } });
+      
       return ctx.db.course.delete({ where: { id: input.id } });
     }),
 });

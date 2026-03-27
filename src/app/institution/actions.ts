@@ -39,9 +39,8 @@ export async function createProgram(data: {
   localPrice?: number;
   foreignPrice?: number;
 }) {
-  const supabase = createAdminClient();
+  const supabase = createAdminClient(); // Use admin client
   const newId = generateId();
-  console.log("Creating program with id:", newId);
 
   const { data: program, error } = await supabase
     .from("Program")
@@ -71,10 +70,10 @@ export async function createProgram(data: {
     )
     .single();
 
-  console.log("Program error:", error?.message);
-  console.log("Program data:", program);
-
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Create program error:", error);
+    throw new Error(error.message);
+  }
 
   revalidatePath("/institution");
   return { ...program, courses: [] };
@@ -118,25 +117,35 @@ export async function updateProgram(
 }
 
 export async function toggleProgram(id: string, current: boolean) {
-  const supabase = createClient();
+  const supabase = createAdminClient(); // Use admin client for database operations
+  
   const { error } = await supabase
     .from("Program")
     .update({ isPublished: !current })
     .eq("id", id);
-  if (error) throw new Error(error.message);
+    
+  if (error) {
+    console.error("Toggle program error:", error);
+    throw new Error(error.message);
+  }
+  
   revalidatePath("/institution");
 }
 
 export async function deleteProgram(id: string) {
-  const supabase = createAdminClient();
+  const supabase = createAdminClient(); // Use admin client
+  
+  // Delete related records first
   await supabase.from("CourseEnrollment").delete().eq("courseId", id);
   await supabase.from("CourseLecturer").delete().eq("courseId", id);
   await supabase.from("Assessment").delete().eq("courseId", id);
   await supabase.from("Course").delete().eq("programId", id);
   await supabase.from("Enrollment").delete().eq("programId", id);
   await supabase.from("Credential").delete().eq("programId", id);
+  
   const { error } = await supabase.from("Program").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  
   revalidatePath("/institution");
 }
 
