@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from "react";
 import {
-  BookOpen,
-  Award,
-  Briefcase,
-  TrendingUp,
-  FileText,
-  Loader2,
-  AlertCircle,
+  BookOpen, Award, Briefcase, TrendingUp, FileText,
+  Loader2, AlertCircle, GraduationCap, Layers,
+  ArrowRight, CheckCircle2, BarChart3,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "~/lib/supabase/client";
+import { api } from "~/trpc/react";
 import SetupIncompleteBanner from "./SetupIncompleteBanner";
 
 interface Enrollment {
@@ -34,6 +31,21 @@ interface Credential {
   issueDate: string | null;
 }
 
+// ── Progress bar ──────────────────────────────────────────────────────────
+
+function ProgressBar({ percent }: { percent: number }) {
+  return (
+    <div className="h-1.5 w-full rounded-full bg-slate-100">
+      <div
+        className={`h-1.5 rounded-full transition-all ${percent === 100 ? "bg-emerald-500" : "bg-blue-500"}`}
+        style={{ width: `${percent}%` }}
+      />
+    </div>
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────
+
 export default function StudentDashboard() {
   const router = useRouter();
   const supabase = createClient();
@@ -45,6 +57,14 @@ export default function StudentDashboard() {
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isStudent, setIsStudent] = useState(false);
+
+  // tRPC — enrolled courses with progress (only when student setup is complete)
+  const { data: courseEnrollments = [] } =
+    api.studentCourse.getMyEnrollments.useQuery(undefined, {
+      enabled: isStudent,
+      staleTime: 0,
+    });
 
   useEffect(() => {
     const init = async () => {
@@ -56,7 +76,6 @@ export default function StudentDashboard() {
         .select("fullName")
         .eq("id", user.id)
         .single();
-
       setFullName(profile?.fullName ?? null);
 
       const { data: student } = await supabase
@@ -68,40 +87,36 @@ export default function StudentDashboard() {
       setSetupComplete(!!student);
 
       if (student) {
+        setIsStudent(true);
         await fetchDashboardData(student.id);
       } else {
         setLoading(false);
       }
     };
-
     void init();
   }, []);
 
   const fetchDashboardData = async (sId: string) => {
     try {
       setLoading(true);
-
       const [enrollmentsRes, jobAppsRes, credentialsRes] = await Promise.all([
         supabase
           .from("Enrollment")
           .select("id, status, program:Program(title, institution:Institution(name))")
           .eq("studentId", sId)
           .eq("status", "ACTIVE"),
-
         supabase
           .from("JobApplication")
           .select("id, status, appliedAt, job:JobListing(title, employer:Employer(companyName))")
           .eq("studentId", sId)
           .order("appliedAt", { ascending: false })
           .limit(5),
-
         supabase
           .from("Credential")
           .select("id, title, credentialType, issueDate")
           .eq("studentId", sId)
           .order("issueDate", { ascending: false }),
       ]);
-
       if (enrollmentsRes.data) setEnrollments(enrollmentsRes.data as Enrollment[]);
       if (jobAppsRes.data) setJobApplications(jobAppsRes.data as JobApplication[]);
       if (credentialsRes.data) setCredentials(credentialsRes.data as Credential[]);
@@ -122,12 +137,12 @@ export default function StudentDashboard() {
   };
 
   const statusColors: Record<string, string> = {
-    APPLIED: "bg-yellow-100 text-yellow-800",
+    APPLIED:     "bg-yellow-100 text-yellow-800",
     SHORTLISTED: "bg-blue-100 text-blue-800",
-    INTERVIEW: "bg-purple-100 text-purple-800",
-    OFFERED: "bg-green-100 text-green-800",
-    REJECTED: "bg-red-100 text-red-800",
-    WITHDRAWN: "bg-gray-100 text-gray-800",
+    INTERVIEW:   "bg-purple-100 text-purple-800",
+    OFFERED:     "bg-green-100 text-green-800",
+    REJECTED:    "bg-red-100 text-red-800",
+    WITHDRAWN:   "bg-gray-100 text-gray-800",
   };
 
   const getFirst = <T,>(arr: T[] | null | undefined): T | null =>
@@ -144,11 +159,14 @@ export default function StudentDashboard() {
     );
   }
 
+  const inProgress = courseEnrollments.filter(
+    (e) => e.progressPercent < 100 && e.status === "ACTIVE",
+  ).length;
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        {/* Setup incomplete banner */}
         {!setupComplete && <SetupIncompleteBanner role="STUDENT" />}
 
         {/* Header */}
@@ -156,8 +174,7 @@ export default function StudentDashboard() {
           <div>
             <h1 className="mb-1 text-3xl font-bold text-gray-900">Student Dashboard</h1>
             <p className="font-medium text-gray-600">
-              Welcome back{" "}
-              <span className="text-blue-600">{fullName ?? "Student"}</span>
+              Welcome back <span className="text-blue-600">{fullName ?? "Student"}</span>
             </p>
           </div>
           <button
@@ -170,16 +187,128 @@ export default function StudentDashboard() {
 
         {/* Stats */}
         <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={<BookOpen className="text-blue-600" />} count={enrollments.length} label="Active Enrollments" />
-          <StatCard icon={<FileText className="text-emerald-600" />} count={jobApplications.length} label="Job Applications" />
-          <StatCard icon={<Award className="text-orange-600" />} count={credentials.length} label="Credentials" />
-          <StatCard icon={<Briefcase className="text-purple-600" />} count={0} label="Opportunities" />
+          <StatCard icon={<BookOpen className="text-blue-600" />}     count={courseEnrollments.length} label="Courses Enrolled" />
+          <StatCard icon={<BarChart3 className="text-emerald-600" />} count={inProgress}               label="In Progress" />
+          <StatCard icon={<Award className="text-orange-600" />}      count={credentials.length}       label="Credentials" />
+          <StatCard icon={<Briefcase className="text-purple-600" />}  count={jobApplications.length}   label="Job Applications" />
         </div>
 
-        <div className="mb-8 grid gap-8 lg:grid-cols-2">
+        {/* ── My Learning preview ─────────────────────────────────────── */}
+        {setupComplete && (
+          <div className="mb-8">
+            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-50 px-6 py-5">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">My Learning</h2>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {courseEnrollments.length} enrolled · {inProgress} in progress
+                  </p>
+                </div>
+                <button
+                  onClick={() => router.push("/dashboard/student")}
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-100"
+                >
+                  View All <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
-          {/* Enrollments */}
-          <SectionWrapper title="My Enrollments">
+              {courseEnrollments.length === 0 ? (
+                <div className="px-6 py-10 text-center">
+                  <GraduationCap className="mx-auto mb-3 h-10 w-10 text-gray-200" />
+                  <p className="font-medium text-gray-600">No courses yet</p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Courses you enroll in will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {courseEnrollments.slice(0, 4).map((e) => {
+                    const isModule = !e.course.isStandalone;
+                    const lecturer = e.course.courseLecturers[0]?.lecturer;
+                    const lecturerName = lecturer?.profile?.fullName ?? null;
+
+                    return (
+                      <div
+                        key={e.id}
+                        className="flex items-center gap-4 px-6 py-4 transition hover:bg-slate-50"
+                      >
+                        {/* Icon */}
+                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
+                          isModule ? "bg-blue-50" : "bg-emerald-50"
+                        }`}>
+                          {isModule
+                            ? <Layers className="h-5 w-5 text-blue-600" />
+                            : <GraduationCap className="h-5 w-5 text-emerald-600" />
+                          }
+                        </div>
+
+                        {/* Info */}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-900 truncate">{e.course.title}</p>
+                          <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                            {e.course.code && (
+                              <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">{e.course.code}</span>
+                            )}
+                            {lecturerName && <span>{lecturerName}</span>}
+                          </div>
+                          {/* Progress bar */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1">
+                              <ProgressBar percent={e.progressPercent} />
+                            </div>
+                            <span className={`flex-shrink-0 text-xs font-bold ${
+                              e.progressPercent === 100 ? "text-emerald-600" : "text-blue-600"
+                            }`}>
+                              {e.progressPercent}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="hidden flex-shrink-0 flex-col items-end gap-1 text-xs text-slate-400 sm:flex">
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                            {e.completedResources}/{e.totalResources}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                            e.status === "COMPLETED"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {e.status === "COMPLETED" ? "Completed" : "Active"}
+                          </span>
+                        </div>
+
+                        {/* CTA */}
+                        <button
+                          onClick={() => router.push(`/dashboard/student/courses/${e.courseId}`)}
+                          className="flex-shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                        >
+                          {e.progressPercent === 0 ? "Start" : e.progressPercent === 100 ? "Review" : "Continue"}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {courseEnrollments.length > 4 && (
+                    <div className="px-6 py-3 text-center">
+                      <button
+                        onClick={() => router.push("/dashboard/student")}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                      >
+                        + {courseEnrollments.length - 4} more courses →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Enrollments + Job Applications ──────────────────────────── */}
+        <div className="mb-8 grid gap-8 lg:grid-cols-2">
+          <SectionWrapper title="My Program Enrollments">
             {enrollments.length === 0 ? (
               <EmptyState icon={<BookOpen />} message="No active enrollments" sub="Apply to programs to get started" />
             ) : (
@@ -201,7 +330,6 @@ export default function StudentDashboard() {
             )}
           </SectionWrapper>
 
-          {/* Job Applications */}
           <SectionWrapper title="Recent Job Applications">
             {jobApplications.length === 0 ? (
               <EmptyState icon={<Briefcase />} message="No job applications yet" sub="Browse careers to apply" />
@@ -271,7 +399,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Toast notification */}
+      {/* Toast */}
       {showToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-orange-200 bg-white px-5 py-4 shadow-xl animate-in slide-in-from-bottom-4 duration-300">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100">
