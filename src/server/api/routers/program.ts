@@ -5,6 +5,7 @@ import {
   lecturerProcedure,
   managerProcedure,
   protectedProcedure,
+  publicProcedure,
 } from "~/server/api/trpc";
 
 // ── Validation schemas ─────────────────────────────────────────────────────
@@ -77,8 +78,6 @@ const programInput = z.object({
 });
 
 // ── Completeness check ─────────────────────────────────────────────────────
-// A program is "complete" if all key fields are filled in.
-// Complete programs are auto-approved; incomplete ones go to manager review.
 
 function isProgramComplete(data: z.infer<typeof programInput>): boolean {
   return !!(
@@ -103,28 +102,96 @@ function generateSlug(title: string): string {
 // ── Router ─────────────────────────────────────────────────────────────────
 
 export const programRouter = createTRPCRouter({
+
+  // ── PUBLIC: list approved + published programs ─────────────────────────────
+  listPublic: publicProcedure
+    .input(
+      z.object({
+        search:       z.string().optional(),
+        field:        z.string().optional(),
+        level:        z.string().optional(),
+        deliveryMode: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.program.findMany({
+        where: {
+          isPublished:    true,
+          isActive:       true,
+          approvalStatus: "APPROVED",
+          ...(input.search && {
+            OR: [
+              { title:       { contains: input.search, mode: "insensitive" } },
+              { description: { contains: input.search, mode: "insensitive" } },
+              { institution: { name: { contains: input.search, mode: "insensitive" } } },
+            ],
+          }),
+          ...(input.field        && { field:        input.field        as any }),
+          ...(input.level        && { level:        input.level        as any }),
+          ...(input.deliveryMode && { deliveryMode: input.deliveryMode as any }),
+        },
+        include: {
+          institution: {
+            select: {
+              id: true, name: true, city: true,
+              country: true, isVerified: true,
+            },
+          },
+          courses: { select: { id: true }, where: { isPublished: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }),
+
+  // ── PUBLIC: get single program by id ──────────────────────────────────────
+  getPublicById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const program = await ctx.db.program.findFirst({
+        where: {
+          id:             input.id,
+          isPublished:    true,
+          isActive:       true,
+          approvalStatus: "APPROVED",
+        },
+        include: {
+          institution: {
+            select: {
+              id: true, name: true, city: true, country: true,
+              isVerified: true, website: true, email: true,
+            },
+          },
+          courses: {
+            where:   { isPublished: true },
+            select:  { id: true, title: true, isMandatory: true, orderIndex: true },
+            orderBy: { orderIndex: "asc" },
+          },
+        },
+      });
+
+      if (!program) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+      }
+
+      return program;
+    }),
+
   // ── GET: my programs (scoped by role) ─────────────────────────────────────
-  // - Plain lecturer: only their own created programs
-  // - Managing lecturer: all programs in their institution
   getMyPrograms: lecturerProcedure.query(async ({ ctx }) => {
     const { db, lecturer } = ctx;
 
-    // Get the lecturer's institution ID
     const lecturerRecord = await db.lecturer.findUnique({
       where: { id: lecturer.id },
       select: { institutionId: true },
     });
 
-    if (!lecturerRecord?.institutionId) {
-      return []; // No institution associated
-    }
+    if (!lecturerRecord?.institutionId) return [];
 
-    // Return ALL published and active programs from the lecturer's institution
     return db.program.findMany({
       where: {
-        institutionId: lecturerRecord.institutionId,
-        isActive: true,
-        isPublished: true, // Only show published programs
+        institutionId:  lecturerRecord.institutionId,
+        isActive:       true,
+        isPublished:    true,
         approvalStatus: "APPROVED",
       },
       include: {
@@ -144,11 +211,11 @@ export const programRouter = createTRPCRouter({
 
     return db.program.findMany({
       where: {
-        institutionId: lecturer.institutionId,
+        institutionId:  lecturer.institutionId,
         approvalStatus: "APPROVED",
-        isActive: true,
+        isActive:       true,
       },
-      select: { id: true, title: true, type: true },
+      select:  { id: true, title: true, type: true },
       orderBy: { title: "asc" },
     });
   }),
@@ -157,9 +224,9 @@ export const programRouter = createTRPCRouter({
   getPendingReview: managerProcedure.query(async ({ ctx }) => {
     return ctx.db.program.findMany({
       where: {
-        institutionId: ctx.managerEntry.institutionId,
+        institutionId:  ctx.managerEntry.institutionId,
         approvalStatus: "PENDING",
-        isActive: true,
+        isActive:       true,
       },
       include: {
         createdBy: {
@@ -170,40 +237,33 @@ export const programRouter = createTRPCRouter({
     });
   }),
 
-  // ── CREATE: any approved lecturer can create a program ────────────────────
+  // ── CREATE ────────────────────────────────────────────────────────────────
   create: lecturerProcedure
     .input(programInput)
     .mutation(async ({ ctx, input }) => {
       const { db, lecturer } = ctx;
 
-      // Lecturer must belong to an institution
       if (!lecturer.institutionId) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            "You must be associated with an institution to create programs",
+          code:    "FORBIDDEN",
+          message: "You must be associated with an institution to create programs",
         });
       }
 
       const slug = input.slug?.trim() || generateSlug(input.title);
 
-      // Check slug uniqueness
       const existing = await db.program.findUnique({ where: { slug } });
       if (existing) {
         throw new TRPCError({
-          code: "CONFLICT",
-          message:
-            "A program with this slug already exists. Please use a different title.",
+          code:    "CONFLICT",
+          message: "A program with this slug already exists. Please use a different title.",
         });
       }
 
-      // Determine approval status based on completeness
       const complete = isProgramComplete(input);
 
-      // Check if creator is also a manager (auto-approve their own programs)
       const isManager = lecturer.managedInstitutions.some(
-        (m) =>
-          m.canManagePrograms && m.institutionId === lecturer.institutionId,
+        (m) => m.canManagePrograms && m.institutionId === lecturer.institutionId,
       );
 
       const approvalStatus = isManager || complete ? "APPROVED" : "PENDING";
@@ -213,30 +273,28 @@ export const programRouter = createTRPCRouter({
           ...input,
           slug,
           institutionId: lecturer.institutionId,
-          createdById: lecturer.id,
+          createdById:   lecturer.id,
           approvalStatus,
-          isPublished: false, // never auto-publish on create
+          isPublished:   false,
         },
       });
 
-      // Notify institution managers if pending review
       if (approvalStatus === "PENDING") {
         const managers = await db.institutionManager.findMany({
           where: {
-            institutionId: lecturer.institutionId,
+            institutionId:    lecturer.institutionId,
             canManagePrograms: true,
           },
           include: { lecturer: { include: { profile: true } } },
         });
 
-        // Create in-app notifications for all managers
         await db.notification.createMany({
           data: managers.map((m) => ({
             profileId: m.lecturer.profileId,
-            title: "New Program Pending Review",
-            message: `"${program.title}" has been submitted for review.`,
-            type: "SYSTEM" as const,
-            link: `/dashboard?tab=institution&review=${program.id}`,
+            title:     "New Program Pending Review",
+            message:   `"${program.title}" has been submitted for review.`,
+            type:      "SYSTEM" as const,
+            link:      `/dashboard?tab=institution&review=${program.id}`,
           })),
         });
       }
@@ -244,24 +302,18 @@ export const programRouter = createTRPCRouter({
       return { program, approvalStatus };
     }),
 
-  // ── UPDATE: creator can edit their own; manager can edit any in their org ──
+  // ── UPDATE ────────────────────────────────────────────────────────────────
   update: lecturerProcedure
     .input(z.object({ id: z.string(), data: programInput }))
     .mutation(async ({ ctx, input }) => {
       const { db, lecturer } = ctx;
 
-      const program = await db.program.findUnique({
-        where: { id: input.id },
-      });
+      const program = await db.program.findUnique({ where: { id: input.id } });
 
       if (!program || !program.isActive) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Program not found",
-        });
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
       }
 
-      // Authorization: must be creator OR manager of this institution
       const isCreator = program.createdById === lecturer.id;
       const isManager = lecturer.managedInstitutions.some(
         (m) => m.canManagePrograms && m.institutionId === program.institutionId,
@@ -269,98 +321,77 @@ export const programRouter = createTRPCRouter({
 
       if (!isCreator && !isManager) {
         throw new TRPCError({
-          code: "FORBIDDEN",
+          code:    "FORBIDDEN",
           message: "You can only edit programs you created",
         });
       }
 
-      // If a plain lecturer edits a previously approved program,
-      // reset it to PENDING for re-review
       const newApprovalStatus = isManager
-        ? program.approvalStatus // managers editing don't change status
+        ? program.approvalStatus
         : isProgramComplete(input.data)
-          ? "PENDING" // re-submit for review after edit
+          ? "PENDING"
           : "DRAFT";
 
       return db.program.update({
         where: { id: input.id },
-        data: {
-          ...input.data,
-          approvalStatus: newApprovalStatus,
-        },
+        data:  { ...input.data, approvalStatus: newApprovalStatus },
       });
     }),
 
-  // ── TOGGLE PUBLISH: managers only ─────────────────────────────────────────
+  // ── TOGGLE PUBLISH ────────────────────────────────────────────────────────
   togglePublish: managerProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const program = await ctx.db.program.findUnique({
-        where: { id: input.id },
-      });
+      const program = await ctx.db.program.findUnique({ where: { id: input.id } });
 
-      if (
-        !program ||
-        program.institutionId !== ctx.managerEntry.institutionId
-      ) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Program not found",
-        });
+      if (!program || program.institutionId !== ctx.managerEntry.institutionId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
       }
 
-      // Can only publish approved programs
       if (!program.isPublished && program.approvalStatus !== "APPROVED") {
         throw new TRPCError({
-          code: "FORBIDDEN",
+          code:    "FORBIDDEN",
           message: "Only approved programs can be published",
         });
       }
 
       return ctx.db.program.update({
         where: { id: input.id },
-        data: { isPublished: !program.isPublished },
+        data:  { isPublished: !program.isPublished },
       });
     }),
 
-  // ── APPROVE: managers only ────────────────────────────────────────────────
+  // ── APPROVE ───────────────────────────────────────────────────────────────
   approve: managerProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const program = await ctx.db.program.findUnique({
-        where: { id: input.id },
+        where:   { id: input.id },
         include: { createdBy: { include: { profile: true } } },
       });
 
-      if (
-        !program ||
-        program.institutionId !== ctx.managerEntry.institutionId
-      ) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Program not found",
-        });
+      if (!program || program.institutionId !== ctx.managerEntry.institutionId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
       }
 
       const updated = await ctx.db.program.update({
         where: { id: input.id },
-        data: {
+        data:  {
           approvalStatus: "APPROVED",
-          reviewedById: ctx.lecturer.id,
-          reviewedAt: new Date(),
-          reviewNote: null,
+          reviewedById:   ctx.lecturer.id,
+          reviewedAt:     new Date(),
+          reviewNote:     null,
         },
       });
 
-      // Notify the creator
       if (program.createdBy?.profileId) {
         await ctx.db.notification.create({
           data: {
             profileId: program.createdBy.profileId,
-            title: "Program Approved ✅",
-            message: `Your program "${program.title}" has been approved.`,
-            type: "SYSTEM",
-            link: `/dashboard`,
+            title:     "Program Approved ✅",
+            message:   `Your program "${program.title}" has been approved.`,
+            type:      "SYSTEM",
+            link:      `/dashboard`,
           },
         });
       }
@@ -368,49 +399,40 @@ export const programRouter = createTRPCRouter({
       return updated;
     }),
 
-  // ── REQUEST CHANGES: managers only ────────────────────────────────────────
+  // ── REQUEST CHANGES ───────────────────────────────────────────────────────
   requestChanges: managerProcedure
-    .input(
-      z.object({
-        id: z.string(),
-        note: z.string().min(10, "Please provide detailed feedback"),
-      }),
-    )
+    .input(z.object({
+      id:   z.string(),
+      note: z.string().min(10, "Please provide detailed feedback"),
+    }))
     .mutation(async ({ ctx, input }) => {
       const program = await ctx.db.program.findUnique({
-        where: { id: input.id },
+        where:   { id: input.id },
         include: { createdBy: { include: { profile: true } } },
       });
 
-      if (
-        !program ||
-        program.institutionId !== ctx.managerEntry.institutionId
-      ) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Program not found",
-        });
+      if (!program || program.institutionId !== ctx.managerEntry.institutionId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
       }
 
       const updated = await ctx.db.program.update({
         where: { id: input.id },
-        data: {
+        data:  {
           approvalStatus: "CHANGES_REQUESTED",
-          reviewedById: ctx.lecturer.id,
-          reviewedAt: new Date(),
-          reviewNote: input.note,
+          reviewedById:   ctx.lecturer.id,
+          reviewedAt:     new Date(),
+          reviewNote:     input.note,
         },
       });
 
-      // Notify the creator with the feedback
       if (program.createdBy?.profileId) {
         await ctx.db.notification.create({
           data: {
             profileId: program.createdBy.profileId,
-            title: "Changes Requested for Your Program",
-            message: `"${program.title}": ${input.note}`,
-            type: "SYSTEM",
-            link: `/dashboard`,
+            title:     "Changes Requested for Your Program",
+            message:   `"${program.title}": ${input.note}`,
+            type:      "SYSTEM",
+            link:      `/dashboard`,
           },
         });
       }
@@ -418,7 +440,7 @@ export const programRouter = createTRPCRouter({
       return updated;
     }),
 
-  // ── DELETE: soft delete — creator or manager ───────────────────────────────
+  // ── DELETE (soft) ─────────────────────────────────────────────────────────
   delete: lecturerProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -427,10 +449,7 @@ export const programRouter = createTRPCRouter({
       const program = await db.program.findUnique({ where: { id: input.id } });
 
       if (!program || !program.isActive) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Program not found",
-        });
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
       }
 
       const isCreator = program.createdById === lecturer.id;
@@ -440,15 +459,14 @@ export const programRouter = createTRPCRouter({
 
       if (!isCreator && !isManager) {
         throw new TRPCError({
-          code: "FORBIDDEN",
+          code:    "FORBIDDEN",
           message: "You don't have permission to delete this program",
         });
       }
 
-      // Soft delete — preserves data integrity (enrollments, credentials etc.)
       return db.program.update({
         where: { id: input.id },
-        data: { isActive: false, isPublished: false },
+        data:  { isActive: false, isPublished: false },
       });
     }),
 
@@ -464,18 +482,10 @@ export const programRouter = createTRPCRouter({
       totalEnrollments,
     ] = await Promise.all([
       ctx.db.program.count({ where: { institutionId, isActive: true } }),
-      ctx.db.program.count({
-        where: { institutionId, isActive: true, isPublished: true },
-      }),
-      ctx.db.program.count({
-        where: { institutionId, isActive: true, approvalStatus: "PENDING" },
-      }),
-      ctx.db.lecturer.count({
-        where: { institutionId, approvalStatus: "APPROVED" },
-      }),
-      ctx.db.enrollment.count({
-        where: { program: { institutionId } },
-      }),
+      ctx.db.program.count({ where: { institutionId, isActive: true, isPublished: true } }),
+      ctx.db.program.count({ where: { institutionId, isActive: true, approvalStatus: "PENDING" } }),
+      ctx.db.lecturer.count({ where: { institutionId, approvalStatus: "APPROVED" } }),
+      ctx.db.enrollment.count({ where: { program: { institutionId } } }),
     ]);
 
     return {

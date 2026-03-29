@@ -1,11 +1,18 @@
 import { createClient } from "~/lib/supabase/server";
 import Header from "~/app/components/Header";
 import LecturerHeader from "~/app/components/LecturerHeader";
+import StudentHeader from "~/app/components/StudentHeader";
 import Footer from "~/app/components/Footer";
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let role: string | null = null;
   if (user) {
@@ -19,7 +26,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <>
-      {role === "LECTURER" ? <LecturerHeader /> : <Header />}
+      {role === "LECTURER" ? (
+        <LecturerHeader />
+      ) : role === "STUDENT" ? (
+        <StudentHeader />
+      ) : (
+        <Header />
+      )}
       <main>{children}</main>
       <Footer />
     </>

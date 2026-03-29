@@ -295,7 +295,7 @@ model Enrollment {
 
 model CourseEnrollment {
   id           String                 @id @default(cuid())
-  enrollmentId String
+  enrollmentId String?
   studentId    String?
   courseId     String
   status       CourseEnrollmentStatus @default(ACTIVE)
@@ -304,7 +304,7 @@ model CourseEnrollment {
   completedAt  DateTime?
   createdAt    DateTime               @default(now())
   course       Course                 @relation(fields: [courseId], references: [id])
-  enrollment   Enrollment             @relation(fields: [enrollmentId], references: [id])
+  enrollment   Enrollment?            @relation(fields: [enrollmentId], references: [id])
   student      Student?               @relation(fields: [studentId], references: [id])
 
   @@schema("public")
