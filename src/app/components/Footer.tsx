@@ -11,7 +11,7 @@ export default function Footer() {
           <div>
             <div className="mb-4 flex items-center space-x-2">
               {/* <GraduationCap className="h-8 w-8 text-blue-500" /> */}
-              <img src="/logo.png" alt="iNEXORA" className="h-10 w-36" />
+              <img src="/logo3.png" alt="iNEXORA" className="h-10 w-36" />
               {/* <img src="/favicon.ico" alt="iNEXORA" className="h-8 w-8" />
               <span className="text-xl font-bold text-white">iNEXORA</span> */}
             </div>

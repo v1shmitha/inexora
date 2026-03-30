@@ -111,7 +111,7 @@ export default function Header() {
   const avatarLetter = profile?.fullName?.charAt(0).toUpperCase() ?? user?.email?.charAt(0).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-50 bg-white font-sans shadow-sm">
+    <header className="sticky top-0 z-50 bg-black font-sans shadow-sm">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
 
@@ -132,8 +132,8 @@ export default function Header() {
                 href={item.path}
                 className={`text-sm font-medium transition-colors ${
                   pathname === item.path
-                    ? "text-blue-600"
-                    : "text-gray-600 hover:text-blue-600"
+                    ? "text-[#f0a850]"
+                    : "text-[#ffffff] hover:text-yellow-600"
                 }`}
               >
                 {item.name}
@@ -207,13 +207,13 @@ export default function Header() {
               <div className="flex items-center space-x-3">
                 <Link
                   href="/login"
-                  className="px-3 py-2 text-sm font-medium text-gray-700 transition hover:text-blue-600"
+                  className="px-3 py-2 text-sm font-medium text-[#f0a850] transition hover:text-white"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                  className="rounded-lg bg-[#f0a850] px-4 py-2 text-sm font-medium text-black transition hover:bg-white"
                 >
                   Get Started
                 </Link>
