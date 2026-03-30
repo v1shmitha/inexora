@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Clock, Loader2,
-  ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
-  FileText, Video, Link2, AlignLeft,
+  ArrowLeft, Clock, Loader2, CheckCircle2, AlertCircle,
+  FileText, Video, Link2, AlignLeft, ChevronDown, ChevronUp,
+  Users, BookOpen, PlayCircle, Lock,
 } from "lucide-react";
 import { createClient } from "~/lib/supabase/client";
 import { api } from "~/trpc/react";
+
+// ── Types ─────────────────────────────────────────────────────────────────
 
 interface CourseDetail {
   id: string;
@@ -18,22 +20,34 @@ interface CourseDetail {
   localPrice: number | null;
   foreignPrice: number | null;
   createdAt: string;
-  createdBy: { title: string | null; bio: string | null; profile: { fullName: string | null } | null } | null;
+  createdBy: {
+    title: string | null; bio: string | null;
+    profile: { fullName: string | null } | null;
+  } | null;
   sections: {
     id: string; title: string; description: string | null;
     instructions: string | null; orderIndex: number;
-    resources: { id: string; title: string; type: string; durationMins: number | null; description: string | null }[];
+    resources: {
+      id: string; title: string; type: string;
+      durationMins: number | null; description: string | null;
+    }[];
   }[];
-  _count: { assessments: number };
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────
+
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
-  PDF:           <FileText className="h-3.5 w-3.5 text-red-500" />,
-  VIDEO_UPLOAD:  <Video className="h-3.5 w-3.5 text-blue-500" />,
-  VIDEO_LINK:    <Video className="h-3.5 w-3.5 text-purple-500" />,
-  IMAGE:         <FileText className="h-3.5 w-3.5 text-green-500" />,
-  PRESENTATION:  <FileText className="h-3.5 w-3.5 text-orange-500" />,
-  EXTERNAL_LINK: <Link2 className="h-3.5 w-3.5 text-slate-500" />,
+  PDF:           <FileText className="h-4 w-4 text-red-500" />,
+  VIDEO_UPLOAD:  <Video className="h-4 w-4 text-blue-500" />,
+  VIDEO_LINK:    <Video className="h-4 w-4 text-purple-500" />,
+  IMAGE:         <FileText className="h-4 w-4 text-green-500" />,
+  PRESENTATION:  <FileText className="h-4 w-4 text-orange-500" />,
+  EXTERNAL_LINK: <Link2 className="h-4 w-4 text-slate-500" />,
+};
+
+const RESOURCE_TYPE_LABELS: Record<string, string> = {
+  PDF: "PDF", VIDEO_UPLOAD: "Video", VIDEO_LINK: "Video Link",
+  IMAGE: "Image", PRESENTATION: "Slides", EXTERNAL_LINK: "Link",
 };
 
 function formatDuration(mins: number | null | undefined): string | null {
@@ -43,18 +57,20 @@ function formatDuration(mins: number | null | undefined): string | null {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export default function CourseDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const supabase = createClient();
-  const utils = api.useUtils();
+// ── Page ──────────────────────────────────────────────────────────────────
 
-  const [course, setCourse] = useState<CourseDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function StudentCourseDetailPage() {
+  const { id }   = useParams<{ id: string }>();
+  const router   = useRouter();
+  const supabase = createClient();
+  const utils    = api.useUtils();
+
+  const [course, setCourse]                   = useState<CourseDetail | null>(null);
+  const [loading, setLoading]                 = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrollError, setEnrollError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [enrolling, setEnrolling]             = useState(false);
+  const [enrollError, setEnrollError]         = useState<string | null>(null);
+  const [user, setUser]                       = useState<any>(null);
 
   const { data: existingEnrollment, isLoading: enrollmentLoading } =
     api.enrollment.checkCourseEnrollment.useQuery(
@@ -62,10 +78,11 @@ export default function CourseDetailPage() {
       { enabled: !!id && !!user, staleTime: 0 },
     );
 
+  const isEnrolled = !!existingEnrollment;
+
   const enrollMutation = api.enrollment.enrollInCourse.useMutation({
     onSuccess: async (data) => {
       if (data.type === "enrolled") {
-        // Invalidate so the query re-fetches and reflects enrollment immediately
         await utils.enrollment.checkCourseEnrollment.invalidate({ courseId: id });
         setEnrolling(false);
       } else if (data.type === "payment_required") {
@@ -102,16 +119,15 @@ export default function CourseDetailPage() {
         .single();
 
       if (data) {
+        const sorted = ((data.sections as any[]) ?? []).sort((a, b) => a.orderIndex - b.orderIndex);
         setCourse({
           ...data,
-          localPrice: data.localPrice ? Number(data.localPrice) : null,
+          localPrice:  data.localPrice  ? Number(data.localPrice)  : null,
           foreignPrice: data.foreignPrice ? Number(data.foreignPrice) : null,
           createdBy: Array.isArray(data.createdBy) ? data.createdBy[0] ?? null : data.createdBy,
-          sections: ((data.sections as any[]) ?? []).sort((a, b) => a.orderIndex - b.orderIndex),
-          _count: { assessments: 0 },
+          sections: sorted,
         } as CourseDetail);
-        const first = ((data.sections as any[]) ?? []).sort((a, b) => a.orderIndex - b.orderIndex)[0];
-        if (first) setExpandedSection(first.id);
+        if (sorted[0]) setExpandedSection(sorted[0].id);
       }
       setLoading(false);
     };
@@ -119,227 +135,331 @@ export default function CourseDetailPage() {
   }, [id]);
 
   const handleEnroll = () => {
-    if (!user) { router.push(`/login?redirect=/courses/${id}`); return; }
+    if (!user) { router.push(`/login?redirect=/dashboard/student/courses/${id}`); return; }
     setEnrolling(true);
     setEnrollError(null);
     enrollMutation.mutate({ courseId: id! });
   };
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
   }
+
   if (!course) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-          <p className="text-slate-600">Course not found.</p>
-          <button onClick={() => router.push("/dashboard/student/courses")} className="mt-3 text-sm text-blue-600 hover:underline">Back to Courses</button>
+          <p className="font-medium text-slate-600">Course not found.</p>
+          <button onClick={() => router.push("/dashboard/student/courses")}
+            className="mt-3 text-sm text-blue-600 hover:underline">
+            Back to Courses
+          </button>
         </div>
       </div>
     );
   }
 
-  const isFree = !course.localPrice || course.localPrice === 0;
-  const isEnrolled = !!existingEnrollment;
-  const totalResources = course.sections.reduce((s, sec) => s + sec.resources.length, 0);
-  const totalMins = course.sections.reduce(
+  const isFree          = !course.localPrice || course.localPrice === 0;
+  const totalResources  = course.sections.reduce((s, sec) => s + sec.resources.length, 0);
+  const totalMins       = course.sections.reduce(
     (s, sec) => s + sec.resources.reduce((rs, r) => rs + (r.durationMins ?? 0), 0), 0,
   );
-  const instructor = course.createdBy;
-  const instructorName = instructor?.profile?.fullName
+  const instructor      = course.createdBy;
+  const instructorName  = instructor?.profile?.fullName
     ? `${instructor.title ? `${instructor.title} ` : ""}${instructor.profile.fullName}`
     : null;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
+
+      {/* ── Top bar ── */}
       <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <button onClick={() => router.push("/dashboard/student/courses")}
-            className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900"
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+          <button
+            onClick={() => router.push("/dashboard/student/courses")}
+            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Courses
           </button>
+        </div>
+      </div>
 
-          <div className="grid gap-8 lg:grid-cols-3">
+      {/* ── Hero header ── */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-3">
+
+            {/* Left — course info */}
             <div className="lg:col-span-2">
-              <span className="mb-2 inline-block rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                Standalone Course
+              <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+                <BookOpen className="h-3.5 w-3.5" /> Standalone Course
               </span>
-              <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
+
+              <h1 className="text-3xl font-bold leading-tight text-slate-900">{course.title}</h1>
+
               {course.code && (
-                <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+                <span className="mt-2 inline-block rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs text-slate-500">
                   {course.code}
                 </span>
               )}
+
               {instructorName && (
-                <p className="mt-3 text-slate-600">
-                  Taught by <span className="font-semibold">{instructorName}</span>
+                <p className="mt-4 flex items-center gap-2 text-slate-600">
+                  <Users className="h-4 w-4 text-slate-400" />
+                  Taught by <span className="ml-1 font-semibold text-slate-800">{instructorName}</span>
                 </p>
               )}
+
               {course.description && (
-                <p className="mt-3 leading-relaxed text-slate-500">{course.description}</p>
+                <p className="mt-4 leading-relaxed text-slate-500">{course.description}</p>
               )}
-              <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4" />{totalResources} resources
-                </span>
-                {totalMins > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4" />{formatDuration(totalMins)} total
-                  </span>
-                )}
-                <span className="flex items-center gap-1.5">
-                  📚 {course.sections.length} sections
-                </span>
+
+              {/* Meta pills */}
+              <div className="mt-5 flex flex-wrap gap-3">
+                {[
+                  { icon: <BookOpen className="h-4 w-4" />,  label: `${totalResources} Resources` },
+                  totalMins > 0 && { icon: <Clock className="h-4 w-4" />, label: formatDuration(totalMins) ?? "" },
+                  { icon: <FileText className="h-4 w-4" />,  label: `${course.sections.length} Sections` },
+                ].filter(Boolean).map((item: any, i) => (
+                  <div key={i} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-600">
+                    <span className="text-slate-400">{item.icon}</span>
+                    {item.label}
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Enrollment card */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-4">
-                {isFree ? (
-                  <p className="text-2xl font-bold text-green-700">Free</p>
+            {/* Right — enrollment card (sticky) */}
+            <div>
+              <div className="sticky top-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+
+                {/* Price */}
+                <div className="mb-5 border-b border-slate-100 pb-5">
+                  {isFree ? (
+                    <div>
+                      <span className="text-3xl font-black text-emerald-600">Free</span>
+                      <p className="mt-0.5 text-sm text-slate-400">No payment required</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-3xl font-black text-slate-900">
+                        LKR {course.localPrice?.toLocaleString()}
+                      </span>
+                      {course.foreignPrice && (
+                        <p className="mt-0.5 text-sm text-slate-400">
+                          USD {course.foreignPrice.toLocaleString()} for international students
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Enroll / enrolled state */}
+                {enrollmentLoading ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+                  </div>
+                ) : isEnrolled ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> You are enrolled
+                    </div>
+                    <button
+                      onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white transition hover:bg-blue-700"
+                    >
+                      <PlayCircle className="h-4 w-4" /> Go to Course
+                    </button>
+                  </div>
                 ) : (
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">
-                      LKR {course.localPrice?.toLocaleString()}
-                    </p>
-                    {course.foreignPrice && (
-                      <p className="text-sm text-slate-400">USD {course.foreignPrice.toLocaleString()}</p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleEnroll}
+                      disabled={enrolling}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {enrolling
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Enrolling…</>
+                        : isFree ? "Enroll for Free" : "Enroll Now"
+                      }
+                    </button>
+                    {enrollError && (
+                      <p className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />{enrollError}
+                      </p>
+                    )}
+                    {!user && (
+                      <p className="text-center text-xs text-slate-400">You'll be asked to sign in first</p>
                     )}
                   </div>
                 )}
-              </div>
 
-              {enrollmentLoading ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                {/* What's included */}
+                <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-5">
+                  {[
+                    { icon: <FileText className="h-3.5 w-3.5" />,    label: `${totalResources} learning resources` },
+                    { icon: <BookOpen className="h-3.5 w-3.5" />,    label: `${course.sections.length} sections` },
+                    totalMins > 0 && { icon: <Clock className="h-3.5 w-3.5" />, label: `${formatDuration(totalMins)} of content` },
+                    { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: "Progress tracking" },
+                    { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: "Certificate on completion" },
+                  ].filter(Boolean).map((item: any, i) => (
+                    <div key={i} className="flex items-center gap-2.5 text-xs text-slate-500">
+                      <span className="flex-shrink-0 text-slate-400">{item.icon}</span>
+                      {item.label}
+                    </div>
+                  ))}
                 </div>
-              ) : isEnrolled ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                    <CheckCircle2 className="h-4 w-4" /> You are enrolled
-                  </div>
-                  <button
-                    onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
-                    className="w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    Go to Course
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <button
-                    onClick={handleEnroll}
-                    disabled={enrolling}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {enrolling
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Enrolling…</>
-                      : isFree ? "Enroll for Free" : "Enroll Now"
-                    }
-                  </button>
-                  {enrollError && (
-                    <p className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                      <AlertCircle className="h-3.5 w-3.5" />{enrollError}
-                    </p>
-                  )}
-                  {!user && (
-                    <p className="text-center text-xs text-slate-400">You'll be asked to sign in</p>
-                  )}
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Body */}
+      {/* ── Sections ── */}
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-10 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <h2 className="mb-4 text-xl font-bold text-slate-900">
-              What You'll Learn ({course.sections.length} sections)
-            </h2>
-            <div className="space-y-2">
-              {course.sections.map((section, idx) => (
-                <div key={section.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                  <button
-                    onClick={() => setExpandedSection(expandedSection === section.id ? null : section.id)}
-                    className="flex w-full items-center gap-3 px-5 py-4 text-left"
-                  >
-                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-xs font-bold text-emerald-700">
-                      {idx + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900">{section.title}</p>
-                      {section.description && (
-                        <p className="truncate text-xs text-slate-400">{section.description}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-shrink-0 items-center gap-3 text-xs text-slate-400">
-                      <span>{section.resources.length} resources</span>
-                      {expandedSection === section.id
-                        ? <ChevronUp className="h-4 w-4" />
-                        : <ChevronDown className="h-4 w-4" />
-                      }
-                    </div>
-                  </button>
 
-                  {expandedSection === section.id && (
-                    <div className="border-t border-slate-100 px-5 pb-4 pt-2">
-                      {section.instructions && (
-                        <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                          <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-700">
-                            <AlignLeft className="h-3 w-3" /> Instructions
-                          </p>
-                          <p className="line-clamp-3 text-xs leading-relaxed text-amber-800">
-                            {section.instructions}
-                          </p>
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        {section.resources.map((r) => (
-                          <div key={r.id} className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
-                            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-white shadow-sm">
-                              {RESOURCE_ICONS[r.type]}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-slate-700">{r.title}</p>
-                              {r.description && (
-                                <p className="truncate text-xs text-slate-400">{r.description}</p>
-                              )}
-                            </div>
-                            {r.durationMins && (
-                              <span className="flex-shrink-0 text-xs text-slate-400">
-                                {formatDuration(r.durationMins)}
-                              </span>
-                            )}
-                          </div>
-                        ))}
+            <div className="mb-5">
+              <h2 className="text-xl font-bold text-slate-900">Course Content</h2>
+              <p className="mt-0.5 text-sm text-slate-400">
+                {course.sections.length} sections · {totalResources} resources
+                {totalMins > 0 && ` · ${formatDuration(totalMins)}`}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {course.sections.map((section, idx) => {
+                const isExpanded = expandedSection === section.id;
+                const secMins    = section.resources.reduce((s, r) => s + (r.durationMins ?? 0), 0);
+
+                return (
+                  <div
+                    key={section.id}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                  >
+                    {/* Section header */}
+                    <button
+                      onClick={() => setExpandedSection(isExpanded ? null : section.id)}
+                      className={`flex w-full items-center gap-4 px-5 py-4 text-left transition ${
+                        isExpanded ? "bg-white" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-xs font-bold text-emerald-700">
+                        {idx + 1}
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">{section.title}</p>
+                        {section.description && (
+                          <p className="mt-0.5 truncate text-xs text-slate-400">{section.description}</p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-shrink-0 items-center gap-3 text-xs text-slate-400">
+                        <span>{section.resources.length} resources</span>
+                        {secMins > 0 && <span>{formatDuration(secMins)}</span>}
+                        {isExpanded
+                          ? <ChevronUp className="h-4 w-4" />
+                          : <ChevronDown className="h-4 w-4" />
+                        }
+                      </div>
+                    </button>
+
+                    {/* Section body */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+
+                        {/* Instructions */}
+                        {section.instructions && (
+                          <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                              <AlignLeft className="h-3.5 w-3.5" /> Instructions
+                            </p>
+                            <p className="text-xs leading-relaxed text-amber-800 line-clamp-3">
+                              {section.instructions}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Resources */}
+                        {section.resources.length === 0 ? (
+                          <p className="py-4 text-center text-xs text-slate-400">No resources in this section yet.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {section.resources.map((r) => (
+                              <div
+                                key={r.id}
+                                className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition ${
+                                  isEnrolled
+                                    ? "border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white cursor-pointer"
+                                    : "border-slate-100 bg-slate-50"
+                                }`}
+                              >
+                                {/* Type icon */}
+                                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+                                  {RESOURCE_ICONS[r.type]}
+                                </div>
+
+                                {/* Info */}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-slate-800">{r.title}</p>
+                                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                                    <span>{RESOURCE_TYPE_LABELS[r.type] ?? r.type}</span>
+                                    {r.durationMins && (
+                                      <>
+                                        <span>·</span>
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="h-3 w-3" />{formatDuration(r.durationMins)}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {r.description && (
+                                    <p className="mt-0.5 truncate text-xs text-slate-400">{r.description}</p>
+                                  )}
+                                </div>
+
+                                {/* Lock for non-enrolled */}
+                                {!isEnrolled && (
+                                  <Lock className="h-3.5 w-3.5 flex-shrink-0 text-slate-300" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
+          {/* Instructor sidebar */}
           {instructor && instructorName && (
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-3 font-bold text-slate-900">Your Instructor</h3>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700">
-                  {instructorName.charAt(0).toUpperCase()}
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 font-bold text-slate-900">Your Instructor</h3>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-black text-emerald-700">
+                    {instructorName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">{instructorName}</p>
+                    {instructor.title && (
+                      <p className="text-xs text-slate-400">{instructor.title}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-slate-900">{instructorName}</p>
-                </div>
+                {instructor.bio && (
+                  <p className="mt-4 text-sm leading-relaxed text-slate-500">{instructor.bio}</p>
+                )}
               </div>
-              {instructor.bio && (
-                <p className="mt-3 text-sm text-slate-500">{instructor.bio}</p>
-              )}
             </div>
           )}
         </div>
