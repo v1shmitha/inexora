@@ -307,7 +307,7 @@ export default function Home() {
                 icon: TrendingUp,
                 color: "bg-indigo-600",
                 title: "Clarity at Every Step",
-                desc: "We remove confusion and provide direction — so you always know what to do next.",
+                desc: "We remove confusion and provide direction, so you always know what to do next.",
               },
               {
                 icon: Award,
@@ -325,7 +325,7 @@ export default function Home() {
                 icon: Users,
                 color: "bg-violet-600",
                 title: "Centered Around You",
-                desc: "Every feature is designed to support your journey — helping you unlock your next level with confidence.",
+                desc: "Every feature is designed to support your journey, helping you unlock your next level with confidence.",
               },
               {
                 icon: Globe,

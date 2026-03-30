@@ -16,13 +16,12 @@ export default function Footer() {
               <span className="text-xl font-bold text-white">iNEXORA</span> */}
             </div>
             <p className="text-sm leading-relaxed">
-              Sri Lanka&apos;s gateway to global education and careers.
-              Bridging students, universities, and opportunities.
+              A next-generation platform designed to help you learn, grow, and evolve with <br />clarity, purpose, and real-world direction.
             </p>
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="ml-35">
             <h3 className="mb-4 font-semibold text-white">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -49,7 +48,7 @@ export default function Footer() {
           </div>
 
           {/* Resources */}
-          <div>
+          <div className="ml-25">
             <h3 className="mb-4 font-semibold text-white">Resources</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -76,7 +75,7 @@ export default function Footer() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div className="ml-15">
             <h3 className="mb-4 font-semibold text-white">Contact</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start space-x-2">
@@ -99,8 +98,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-8 border-t border-gray-800 pt-8 text-center text-sm">
           <p>
-            &copy; {new Date().getFullYear()} Digital Educational Hub of Sri
-            Lanka. All rights reserved.
+            &copy; {new Date().getFullYear()} iNexora. All rights reserved.
           </p>
         </div>
       </div>
