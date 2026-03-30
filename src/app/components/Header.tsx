@@ -118,7 +118,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             {/* <GraduationCap className="h-8 w-8 text-blue-600" /> */}
-            <img src="/logo.png" alt="iNEXORA" className="h-10 w-36" />
+            <img src="/logo3.png" alt="iNEXORA" className="h-10 w-36" />
             {/* <span className="text-xl font-bold tracking-tight text-gray-900">
               iNEXORA
             </span> */}
