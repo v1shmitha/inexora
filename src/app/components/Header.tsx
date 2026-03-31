@@ -111,7 +111,7 @@ export default function Header() {
   const avatarLetter = profile?.fullName?.charAt(0).toUpperCase() ?? user?.email?.charAt(0).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-50 bg-black font-sans shadow-sm">
+    <header className="sticky top-0 z-50 bg-[#0d1117] font-sans shadow-sm">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
 
