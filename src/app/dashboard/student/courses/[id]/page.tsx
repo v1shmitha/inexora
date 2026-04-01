@@ -269,10 +269,10 @@ export default function StudentCourseDetailPage() {
                       <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> You are enrolled
                     </div>
                     <button
-                      onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
+                      onClick={() => router.push(`/dashboard/student`)}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white transition hover:bg-blue-700"
                     >
-                      <PlayCircle className="h-4 w-4" /> Go to Course
+                      Go to My Learning
                     </button>
                   </div>
                 ) : (

@@ -14,7 +14,8 @@ async function getStudent(db: any, profileId: string) {
 }
 
 export const enrollmentRouter = createTRPCRouter({
-  // ── Check enrollment status for a program ─────────────────────────────
+
+  // ── Check enrollment status for a program ────────────────────────────
   checkProgramEnrollment: protectedProcedure
     .input(z.object({ programId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -30,7 +31,7 @@ export const enrollmentRouter = createTRPCRouter({
       }
     }),
 
-  // ── Check enrollment status for a standalone course ───────────────────
+  // ── Check enrollment status for a standalone course ──────────────────
   checkCourseEnrollment: protectedProcedure
     .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -46,10 +47,7 @@ export const enrollmentRouter = createTRPCRouter({
       }
     }),
 
-  // ── ADD THIS PROCEDURE to enrollmentRouter in enrollment.ts ──────────────
-  //
-  // Place it after checkCourseEnrollment and before enrollInProgram
-
+  // ── GET: my program enrollments ──────────────────────────────────────
   getMyProgramEnrollments: protectedProcedure.query(async ({ ctx }) => {
     const student = await getStudent(ctx.db, ctx.profile.id);
 
@@ -66,11 +64,9 @@ export const enrollmentRouter = createTRPCRouter({
             type: true,
             deliveryMode: true,
             durationMonths: true,
-            institution: {
-              select: { id: true, name: true },
-            },
+            institution: { select: { id: true, name: true } },
             _count: {
-              select: { courses: { where: { isPublished: true } } },
+              select: { courses: true },
             },
           },
         },
@@ -78,24 +74,17 @@ export const enrollmentRouter = createTRPCRouter({
       orderBy: { createdAt: "desc" },
     });
 
-    // Count completed courses per enrollment
     const completedCoursesByEnrollment = await Promise.all(
       enrollments.map(async (e) => {
         const completed = await ctx.db.courseEnrollment.count({
-          where: {
-            enrollmentId: e.id,
-            status: "COMPLETED",
-          },
+          where: { enrollmentId: e.id, status: "COMPLETED" },
         });
         return { enrollmentId: e.id, completedCourses: completed };
       }),
     );
 
     const completedMap = Object.fromEntries(
-      completedCoursesByEnrollment.map((c) => [
-        c.enrollmentId,
-        c.completedCourses,
-      ]),
+      completedCoursesByEnrollment.map((c) => [c.enrollmentId, c.completedCourses]),
     );
 
     return enrollments.map((e) => ({
@@ -104,7 +93,7 @@ export const enrollmentRouter = createTRPCRouter({
     }));
   }),
 
-  // ── Enroll in a program ───────────────────────────────────────────────
+  // ── Enroll in a program ──────────────────────────────────────────────
   enrollInProgram: protectedProcedure
     .input(z.object({ programId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -132,15 +121,21 @@ export const enrollmentRouter = createTRPCRouter({
         },
       });
       if (!program)
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Program not found",
-        });
+        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
       if (!program.isPublished || program.approvalStatus !== "APPROVED")
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Program is not available for enrollment",
         });
+
+      // FIX: fetch ALL courses for this program with no filters.
+      // Previously filtered by isMandatory:true AND isPublished:true which
+      // caused zero CourseEnrollment rows to be created when courses were
+      // unpublished, locking every module for the student.
+      const courses = await ctx.db.course.findMany({
+        where: { programId: input.programId },
+        select: { id: true },
+      });
 
       const isFree = !program.localPrice || Number(program.localPrice) === 0;
 
@@ -154,21 +149,14 @@ export const enrollmentRouter = createTRPCRouter({
           },
         });
 
-        const courses = await ctx.db.course.findMany({
-          where: {
-            programId: input.programId,
-            isMandatory: true,
-            isPublished: true,
-          },
-          select: { id: true },
-        });
+        // Create a CourseEnrollment for every course in the program
         if (courses.length > 0) {
           await ctx.db.courseEnrollment.createMany({
             data: courses.map((c) => ({
               enrollmentId: enrollment.id,
               studentId: student.id,
               courseId: c.id,
-              status: "ACTIVE",
+              status: "ACTIVE" as const,
             })),
             skipDuplicates: true,
           });
@@ -177,6 +165,7 @@ export const enrollmentRouter = createTRPCRouter({
         return { type: "enrolled" as const, enrollmentId: enrollment.id };
       }
 
+      // Paid enrollment — create pending payment then enrollment
       const payment = await ctx.db.payment.create({
         data: {
           profileId: ctx.profile.id,
@@ -197,6 +186,20 @@ export const enrollmentRouter = createTRPCRouter({
         },
       });
 
+      // Still create CourseEnrollment rows even for paid (pending) enrollment
+      // so they're ready when payment is confirmed
+      if (courses.length > 0) {
+        await ctx.db.courseEnrollment.createMany({
+          data: courses.map((c) => ({
+            enrollmentId: enrollment.id,
+            studentId: student.id,
+            courseId: c.id,
+            status: "ACTIVE" as const,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
       return {
         type: "payment_required" as const,
         enrollmentId: enrollment.id,
@@ -207,7 +210,7 @@ export const enrollmentRouter = createTRPCRouter({
       };
     }),
 
-  // ── Enroll in a standalone course ─────────────────────────────────────
+  // ── Enroll in a standalone course ────────────────────────────────────
   enrollInCourse: protectedProcedure
     .input(z.object({ courseId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -245,7 +248,6 @@ export const enrollmentRouter = createTRPCRouter({
       const isFree = !course.localPrice || Number(course.localPrice) === 0;
 
       if (isFree) {
-        // Standalone courses have no parent Enrollment — enrollmentId is null
         const courseEnrollment = await ctx.db.courseEnrollment.create({
           data: {
             enrollmentId: null,
@@ -254,7 +256,6 @@ export const enrollmentRouter = createTRPCRouter({
             status: "ACTIVE",
           },
         });
-
         return { type: "enrolled" as const, enrollmentId: courseEnrollment.id };
       }
 

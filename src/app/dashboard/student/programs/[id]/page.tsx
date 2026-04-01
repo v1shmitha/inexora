@@ -466,7 +466,7 @@ export default function StudentProgramDetailPage() {
                           )}
                           {isEnrolled && moduleStatus && (
                             <button
-                              onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
+                              onClick={() => router.push(`/dashboard/student/courses/${course.id}/learn`)}
                               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
                                 moduleStatus === "COMPLETED"
                                   ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"

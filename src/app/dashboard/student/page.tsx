@@ -142,7 +142,7 @@ export default function MyLearningPage() {
         <div className="mb-6 flex items-center gap-3">
           <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             {([
-              { key: "COURSES",  label: "Courses & Modules", icon: BookOpen,      count: courseEnrollments.length },
+              { key: "COURSES",  label: "Courses", icon: BookOpen,      count: courseEnrollments.length },
               { key: "PROGRAMS", label: "Programs",          icon: GraduationCap, count: programEnrollments.length },
             ] as const).map(({ key, label, icon: Icon, count }) => (
               <button
@@ -306,7 +306,7 @@ export default function MyLearningPage() {
                       </div>
 
                       <button
-                        onClick={() => router.push(`/dashboard/student/courses/${e.courseId}`)}
+                        onClick={() => router.push(`/dashboard/student/courses/${e.courseId}/learn`)}
                         className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
                           e.progressPercent === 100
                             ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -416,7 +416,7 @@ export default function MyLearningPage() {
 
                       {/* CTA */}
                       <button
-                        onClick={() => router.push(`/dashboard/student/programs/${e.programId}`)}
+                        onClick={() => router.push(`/dashboard/student/programs/${e.programId}/learn`)}
                         className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
                           progressPercent === 100
                             ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"

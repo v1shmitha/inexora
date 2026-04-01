@@ -8,18 +8,25 @@ async function getStudent(db: any, profileId: string) {
     where: { profileId },
     select: { id: true },
   });
-  if (!student) throw new TRPCError({ code: "FORBIDDEN", message: "Student profile not found" });
+  if (!student)
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Student profile not found",
+    });
   return student;
 }
 
 export const studentCourseRouter = createTRPCRouter({
-
   // ── GET: all enrolled courses with progress ───────────────────────────
   getMyEnrollments: protectedProcedure.query(async ({ ctx }) => {
     const student = await getStudent(ctx.db, ctx.profile.id);
 
     const enrollments = await ctx.db.courseEnrollment.findMany({
-      where: { studentId: student.id, status: { not: "WITHDRAWN" } },
+      where: {
+        studentId: student.id,
+        status: { not: "WITHDRAWN" },
+        course: { isStandalone: true },
+      },
       include: {
         course: {
           select: {
@@ -74,12 +81,14 @@ export const studentCourseRouter = createTRPCRouter({
 
     return enrollments.map((e) => {
       const totalResources = e.course.sections.reduce(
-        (s, sec) => s + sec.resources.length, 0,
+        (s, sec) => s + sec.resources.length,
+        0,
       );
       const completedResources = completedByCourse[e.courseId]?.size ?? 0;
-      const progressPercent = totalResources > 0
-        ? Math.round((completedResources / totalResources) * 100)
-        : 0;
+      const progressPercent =
+        totalResources > 0
+          ? Math.round((completedResources / totalResources) * 100)
+          : 0;
 
       return {
         ...e,
@@ -100,7 +109,11 @@ export const studentCourseRouter = createTRPCRouter({
       const enrollment = await ctx.db.courseEnrollment.findFirst({
         where: { studentId: student.id, courseId: input.courseId },
       });
-      if (!enrollment) throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled in this course" });
+      if (!enrollment)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not enrolled in this course",
+        });
 
       const course = await ctx.db.course.findUnique({
         where: { id: input.courseId },
@@ -149,7 +162,8 @@ export const studentCourseRouter = createTRPCRouter({
         const completedInSection = section.resources.filter((r) =>
           completedSet.has(r.id),
         ).length;
-        const sectionComplete = totalInSection > 0 && completedInSection === totalInSection;
+        const sectionComplete =
+          totalInSection > 0 && completedInSection === totalInSection;
 
         let isUnlocked = idx === 0; // first section always unlocked
         if (idx > 0) {
@@ -174,11 +188,15 @@ export const studentCourseRouter = createTRPCRouter({
         };
       });
 
-      const totalResources = course.sections.reduce((s, sec) => s + sec.resources.length, 0);
+      const totalResources = course.sections.reduce(
+        (s, sec) => s + sec.resources.length,
+        0,
+      );
       const completedResources = completedSet.size;
-      const progressPercent = totalResources > 0
-        ? Math.round((completedResources / totalResources) * 100)
-        : 0;
+      const progressPercent =
+        totalResources > 0
+          ? Math.round((completedResources / totalResources) * 100)
+          : 0;
 
       return {
         ...course,
@@ -197,12 +215,22 @@ export const studentCourseRouter = createTRPCRouter({
       const student = await getStudent(ctx.db, ctx.profile.id);
 
       const existing = await ctx.db.resourceProgress.findUnique({
-        where: { studentId_resourceId: { studentId: student.id, resourceId: input.resourceId } },
+        where: {
+          studentId_resourceId: {
+            studentId: student.id,
+            resourceId: input.resourceId,
+          },
+        },
       });
 
       if (existing) {
         await ctx.db.resourceProgress.delete({
-          where: { studentId_resourceId: { studentId: student.id, resourceId: input.resourceId } },
+          where: {
+            studentId_resourceId: {
+              studentId: student.id,
+              resourceId: input.resourceId,
+            },
+          },
         });
         return { completed: false };
       } else {
@@ -222,7 +250,8 @@ export const studentCourseRouter = createTRPCRouter({
       const enrollment = await ctx.db.courseEnrollment.findFirst({
         where: { studentId: student.id, courseId: input.courseId },
       });
-      if (!enrollment) throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled" });
+      if (!enrollment)
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled" });
 
       const assessments = await ctx.db.assessment.findMany({
         where: { courseId: input.courseId },
@@ -244,11 +273,13 @@ export const studentCourseRouter = createTRPCRouter({
 
   // ── MUTATION: submit assessment ───────────────────────────────────────
   submitAssessment: protectedProcedure
-    .input(z.object({
-      assessmentId: z.string(),
-      submissionText: z.string().optional().nullable(),
-      fileUrl: z.string().url().optional().nullable(),
-    }))
+    .input(
+      z.object({
+        assessmentId: z.string(),
+        submissionText: z.string().optional().nullable(),
+        fileUrl: z.string().url().optional().nullable(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const student = await getStudent(ctx.db, ctx.profile.id);
 
@@ -262,10 +293,14 @@ export const studentCourseRouter = createTRPCRouter({
       const enrollment = await ctx.db.courseEnrollment.findFirst({
         where: { studentId: student.id, courseId: assessment.courseId },
       });
-      if (!enrollment) throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled" });
+      if (!enrollment)
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled" });
 
       if (!input.submissionText && !input.fileUrl) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Submission must include text or a file" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Submission must include text or a file",
+        });
       }
 
       // Check for existing submission
@@ -274,7 +309,10 @@ export const studentCourseRouter = createTRPCRouter({
       });
 
       if (existing && existing.status === "GRADED") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "This assessment has already been graded" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This assessment has already been graded",
+        });
       }
 
       if (existing) {

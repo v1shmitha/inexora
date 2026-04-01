@@ -7,6 +7,7 @@ import { assessmentRouter } from "~/server/api/routers/assessment";
 import { courseResourceRouter } from "~/server/api/routers/courseResource";
 import { libraryResourceRouter } from "~/server/api/routers/libraryResource";
 import { studentCourseRouter } from "~/server/api/routers/studentCourse";
+import { studentProgramRouter } from "~/server/api/routers/studentProgram";
 import { enrollmentRouter } from "~/server/api/routers/enrollment";
 
 
@@ -19,6 +20,7 @@ export const appRouter = createTRPCRouter({
   courseResource: courseResourceRouter,
   libraryResource: libraryResourceRouter,
   studentCourse: studentCourseRouter,
+  studentProgram: studentProgramRouter,
   enrollment: enrollmentRouter,
 });
 
