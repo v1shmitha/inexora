@@ -416,8 +416,8 @@ export default function Signup() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 required
-                placeholder="000000"
-                maxLength={6}
+                placeholder="00000000"
+                maxLength={8}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-slate-900 transition outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
               />
 
