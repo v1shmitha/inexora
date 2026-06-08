@@ -24,8 +24,7 @@
     "plugins": [{ "name": "next" }],
     "incremental": true,
 
-    /* Path Aliases */
-    "baseUrl": ".",
+    /* Path Aliases */    
     "paths": {
       "~/*": ["./src/*"]
     }

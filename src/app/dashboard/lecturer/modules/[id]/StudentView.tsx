@@ -179,7 +179,7 @@ interface CompletedState {
 export default function StudentView({ course, sections, enrolledStudents = 0, onExitPreview }: StudentViewProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(sections.map(s => s.id)));
-  const [currentSectionId, setCurrentSectionId] = useState<string>(sections[0]?.id);
+  const [currentSectionId, setCurrentSectionId] = useState<string>(sections[0]?.id ?? "");
   const [currentResourceId, setCurrentResourceId] = useState<string | null>(null);
   const [completedResources, setCompletedResources] = useState<CompletedState>(() => {
     // Load from localStorage in a real app
@@ -446,7 +446,7 @@ export default function StudentView({ course, sections, enrolledStudents = 0, on
                   <button
                     onClick={() => {
                       setCurrentResourceId(null);
-                      setCurrentSectionId(sections[0]?.id);
+                      setCurrentSectionId(sections[0]?.id ?? "");
                     }}
                     className="flex items-center gap-1 text-slate-500 hover:text-slate-700"
                   >
@@ -487,7 +487,7 @@ export default function StudentView({ course, sections, enrolledStudents = 0, on
                     {currentResource.type === 'VIDEO_LINK' && (
                       <div className="aspect-video rounded-lg bg-slate-900 overflow-hidden">
                         <iframe
-                          src={currentResource.externalUrl}
+                          src={currentResource.externalUrl ?? undefined}
                           className="h-full w-full"
                           allowFullScreen
                           title={currentResource.title}
@@ -496,7 +496,7 @@ export default function StudentView({ course, sections, enrolledStudents = 0, on
                     )}
                     {currentResource.type === 'PDF' && (
                       <iframe
-                        src={currentResource.fileUrl}
+                        src={currentResource.fileUrl ?? undefined}
                         className="h-[500px] w-full rounded-lg border"
                         title={currentResource.title}
                       />
@@ -510,7 +510,7 @@ export default function StudentView({ course, sections, enrolledStudents = 0, on
                     )}
                     {currentResource.type === 'EXTERNAL_LINK' && (
                       <a
-                        href={currentResource.externalUrl}
+                        href={currentResource.externalUrl ?? undefined}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"

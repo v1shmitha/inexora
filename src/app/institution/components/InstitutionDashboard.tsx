@@ -132,7 +132,7 @@ interface RejectedLecturer {
   title: string | null;
   specialization: string[];
   createdAt: string;
-  rejectedAt: string;
+  updatedAt: string;
   profile: LecturerProfile[] | LecturerProfile | null;
 }
 
@@ -436,7 +436,7 @@ export default function InstitutionDashboard({
   const handleSuspendLecturer = (id: string, isSuspended: boolean) =>
     run(
       id,
-      () => isSuspended ? reinstateLecturer(id) : suspendLecturer(id),
+      () => (isSuspended ? reinstateLecturer(id) : suspendLecturer(id)),
       () => {
         setInstitution((prev) => ({
           ...prev,
@@ -536,7 +536,12 @@ export default function InstitutionDashboard({
     (a) => a.isPublished,
   ).length;
 
-  const navItems: { id: TabType; label: string; icon: typeof BarChart3 }[] = [
+  const navItems: {
+    id: TabType;
+    label: string;
+    icon: typeof BarChart3;
+    badge?: number;
+  }[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "programs", label: "Programs", icon: BookOpen },
     { id: "announcements", label: "Announcements", icon: Megaphone },
@@ -1260,7 +1265,7 @@ export default function InstitutionDashboard({
                               </p>
                               <p className="text-xs text-slate-400">
                                 Rejected{" "}
-                                {new Date(lec.rejectedAt).toLocaleDateString()}
+                                {new Date(lec.updatedAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>

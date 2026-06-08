@@ -2314,6 +2314,7 @@ export default function AdminDashboard({
                   ) : (
                     rejectedLecturers.map((lec) => {
                       const p = getProfile(lec.profile);
+  const displayName = p?.fullName ?? "this user";
                       return (
                         <div
                           key={lec.id}
@@ -2349,7 +2350,7 @@ export default function AdminDashboard({
                             </ActionBtn>
                             <ActionBtn
                               id={`del-${lec.id}`}
-                              onClick={() => handleDeleteUser(lec.profileId)}
+                              onClick={() => handleDeleteUser(lec.profileId, displayName)}
                               color="bg-red-50 text-red-700 hover:bg-red-100"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -2421,7 +2422,7 @@ export default function AdminDashboard({
                             </ActionBtn>
                             <ActionBtn
                               id={`del-${emp.id}`}
-                              onClick={() => handleDeleteUser(emp.profileId)}
+                              onClick={() => handleDeleteUser(emp.profileId, emp.companyName ?? "this employer")}
                               color="bg-red-50 text-red-700 hover:bg-red-100"
                             >
                               <Trash2 className="h-3.5 w-3.5" />

@@ -167,7 +167,7 @@ function AddResourceForm({
     try {
       const result = await uploadCourseResource(file, courseId);
       if (result.error) throw new Error(result.error);
-      setFileUrl(result.url);
+      setFileUrl(result.url ?? "");
       setTitle((t) => t || file.name.replace(/\.[^.]+$/, ""));
       setDetectedType(detectResourceType(file));
       setSizeBytes(result.sizeBytes);

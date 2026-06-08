@@ -59,47 +59,39 @@ export default async function InstitutionPage() {
   if (!institution) redirect("/login");
 
   // NOW fetch pending and rejected lecturers using institution.id
-  const pendingLecturers = await db.lecturer.findMany({
-  where: {
-    institutionId: institution.id,
-    approvalStatus: "PENDING",
-  },
-  select: {
-    id: true,
-    title: true,
-    specialization: true,
-    createdAt: true,
-    profile: {
-      select: { 
-        fullName: true, 
-        email: true 
+  const pendingLecturers = (
+    await db.lecturer.findMany({
+      where: { institutionId: institution.id, approvalStatus: "PENDING" },
+      select: {
+        id: true,
+        title: true,
+        specialization: true,
+        createdAt: true,
+        profile: { select: { fullName: true, email: true } },
       },
-    },
-  },
-  orderBy: { createdAt: "desc" },
-});
+      orderBy: { createdAt: "desc" },
+    })
+  ).map((l) => ({ ...l, createdAt: l.createdAt.toISOString() }));
 
-const rejectedLecturers = await db.lecturer.findMany({
-  where: {
-    institutionId: institution.id,
-    approvalStatus: "REJECTED",
-  },
-  select: {
-    id: true,
-    profileId: true,
-    title: true,
-    specialization: true,
-    createdAt: true,
-    updatedAt: true,
-    profile: {
-      select: { 
-        fullName: true, 
-        email: true 
+  const rejectedLecturers = (
+    await db.lecturer.findMany({
+      where: { institutionId: institution.id, approvalStatus: "REJECTED" },
+      select: {
+        id: true,
+        profileId: true,
+        title: true,
+        specialization: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: { select: { fullName: true, email: true } },
       },
-    },
-  },
-  orderBy: { updatedAt: "desc" },
-});
+      orderBy: { updatedAt: "desc" },
+    })
+  ).map((l) => ({
+    ...l,
+    createdAt: l.createdAt.toISOString(),
+    updatedAt: l.updatedAt.toISOString(),
+  }));
 
   return (
     <InstitutionDashboard

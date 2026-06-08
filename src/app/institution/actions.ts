@@ -194,6 +194,7 @@ export async function approveLecturer(lecturerId: string) {
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
+  if (!lecturer.institutionId) throw new Error("Lecturer has no institution");
 
   // Check if user is ADMIN
   if (user.role === "ADMIN") {
@@ -239,6 +240,7 @@ export async function rejectLecturer(lecturerId: string) {
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
+  if (!lecturer.institutionId) throw new Error("Lecturer has no institution");
 
   // Check if user is ADMIN
   if (user.role === "ADMIN") {
@@ -284,7 +286,8 @@ export async function reApproveLecturer(lecturerId: string) {
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
-  
+  if (!lecturer.institutionId) throw new Error("Lecturer has no institution");
+
   if (lecturer.approvalStatus !== "REJECTED") {
     throw new Error("Lecturer is not in rejected status");
   }
@@ -336,6 +339,7 @@ export async function suspendLecturer(lecturerId: string) {
     include: { profile: { select: { id: true } } },
   });
   if (!lecturer) throw new Error("Lecturer not found");
+  if (!lecturer.institutionId) throw new Error("Lecturer has no institution");
 
   const authorized =
     user.role === "ADMIN" ||
@@ -375,6 +379,7 @@ export async function reinstateLecturer(lecturerId: string) {
     include: { profile: { select: { id: true } } },
   });
   if (!lecturer) throw new Error("Lecturer not found");
+  if (!lecturer.institutionId) throw new Error("Lecturer has no institution");
 
   const authorized =
     user.role === "ADMIN" ||
@@ -414,6 +419,7 @@ export async function deleteLecturer(lecturerId: string) {
     include: { profile: { select: { id: true } } },
   });
   if (!lecturer) throw new Error("Lecturer not found");
+  if (!lecturer.institutionId) throw new Error("Lecturer has no institution");
 
   const authorized =
     user.role === "ADMIN" ||
