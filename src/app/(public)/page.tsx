@@ -7,27 +7,29 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <div className="font-sans overflow-x-hidden" style={{ background: "#0d1117" }}>
+    <div className="font-sans overflow-x-hidden" style={{ background: "#0A0F1E" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
         .font-display { font-family: 'Sora', sans-serif; }
         .font-body    { font-family: 'Inter', sans-serif; }
 
         :root {
-          --navy-base:    #0d1117;
-          --navy-surface: #131920;
-          --navy-card:    #1e2a3a;
-          --navy-border:  rgba(255,255,255,0.07);
-          --navy-border-strong: rgba(255,255,255,0.12);
-          --gold:         #f0a850;
-          --gold-dim:     #c8883a;
-          --gold-glow:    rgba(240,168,80,0.18);
-          --gold-subtle:  rgba(240,168,80,0.08);
-          --blue-acc:     #3b82f6;
-          --blue-dim:     rgba(59,130,246,0.15);
-          --text-primary: #f0f4f8;
-          --text-secondary: rgba(200,215,230,0.70);
-          --text-muted:   rgba(200,215,230,0.40);
+          --navy-base:    #0A0F1E;
+          --navy-surface: #141C36;
+          --navy-card:    #1E2B55;
+          --navy-border:  rgba(136,153,187,0.12);
+          --navy-border-strong: rgba(136,153,187,0.20);
+          --gold:         #22C55E;
+          --gold-dim:     #16A34A;
+          --gold-glow:    rgba(34,197,94,0.18);
+          --gold-subtle:  rgba(34,197,94,0.08);
+          --accent:       #A3E635;
+          --accent-dim:   #84CC16;
+          --blue-acc:     #38BDF8;
+          --blue-dim:     rgba(56,189,248,0.15);
+          --text-primary: #F5F5F0;
+          --text-secondary: rgba(136,153,187,0.70);
+          --text-muted:   rgba(136,153,187,0.40);
         }
 
         @keyframes fadeUp {
@@ -37,10 +39,6 @@ export default function Home() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to   { opacity: 1; }
-        }
-        @keyframes shimmerGold {
-          0%   { background-position: -200% 0; }
-          100% { background-position:  200% 0; }
         }
         @keyframes orbitSpin {
           from { transform: rotate(0deg); }
@@ -59,8 +57,8 @@ export default function Home() {
           50%       { transform: translateY(-9px); }
         }
         @keyframes goldPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(240,168,80,0); }
-          50%       { box-shadow: 0 0 28px 6px rgba(240,168,80,0.22); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(163,230,53,0); }
+          50%       { box-shadow: 0 0 28px 6px rgba(163,230,53,0.22); }
         }
 
         .anim-fade-up   { animation: fadeUp 0.8s cubic-bezier(.16,1,.3,1) both; }
@@ -69,30 +67,13 @@ export default function Home() {
         .anim-fade-up-4 { animation: fadeUp 0.8s cubic-bezier(.16,1,.3,1) 0.45s both; }
         .anim-fade-in   { animation: fadeIn 1.2s ease both; }
 
-        /* Gold shimmer headline */
+        /* Solid lime highlight headline (no shimmer animation) */
         .shimmer-gold {
-          background: linear-gradient(90deg,
-            var(--gold-dim) 0%,
-            #ffd080 35%,
-            var(--gold)     50%,
-            #ffd080 65%,
-            var(--gold-dim) 100%
-          );
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shimmerGold 4s linear infinite;
+          color: var(--accent);
         }
 
-        /* Blue shimmer (kept for closing CTA) */
         .shimmer-text {
-          background: linear-gradient(90deg, var(--gold-dim) 0%, #ffd080 40%, var(--gold) 60%, var(--gold-dim) 100%);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shimmerGold 4s linear infinite;
+          color: var(--accent);
         }
 
         /* ── Illustration ── */
@@ -109,7 +90,7 @@ export default function Home() {
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          border: 1px solid rgba(240,168,80,0.14);
+          border: 1px solid rgba(163,230,53,0.14);
           animation: orbitSpin 30s linear infinite;
           transform-origin: center;
         }
@@ -117,7 +98,7 @@ export default function Home() {
           position: absolute;
           inset: 52px;
           border-radius: 50%;
-          border: 1px dashed rgba(240,168,80,0.09);
+          border: 1px dashed rgba(163,230,53,0.09);
           animation: orbitSpinRev 20s linear infinite;
           transform-origin: center;
         }
@@ -126,9 +107,9 @@ export default function Home() {
           width: 7px;
           height: 7px;
           border-radius: 50%;
-          background: rgba(240,168,80,0.35);
+          background: rgba(163,230,53,0.35);
           transform: translate(-50%, -50%);
-          box-shadow: 0 0 8px 2px rgba(240,168,80,0.25);
+          box-shadow: 0 0 8px 2px rgba(163,230,53,0.25);
         }
         .core-glow {
           position: absolute;
@@ -138,8 +119,8 @@ export default function Home() {
           width: 82px;
           height: 82px;
           border-radius: 50%;
-          background: rgba(240,168,80,0.06);
-          border: 1.5px solid rgba(240,168,80,0.28);
+          background: rgba(163,230,53,0.06);
+          border: 1.5px solid rgba(163,230,53,0.28);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -149,16 +130,16 @@ export default function Home() {
           width: 48px;
           height: 48px;
           border-radius: 50%;
-          background: rgba(240,168,80,0.12);
-          border: 1.5px solid rgba(240,168,80,0.36);
+          background: rgba(163,230,53,0.12);
+          border: 1.5px solid rgba(163,230,53,0.36);
           display: flex;
           align-items: center;
           justify-content: center;
         }
         .stage-node {
           position: absolute;
-          background: rgba(30,42,58,0.85);
-          border: 1px solid rgba(240,168,80,0.22);
+          background: rgba(20,28,54,0.85);
+          border: 1px solid rgba(163,230,53,0.22);
           border-radius: 11px;
           padding: 9px 13px;
           backdrop-filter: blur(14px);
@@ -199,43 +180,43 @@ export default function Home() {
         .card-hover { transition: transform 0.3s cubic-bezier(.16,1,.3,1), box-shadow 0.3s ease, border-color 0.3s ease; }
         .card-hover:hover {
           transform: translateY(-6px);
-          box-shadow: 0 20px 60px -10px rgba(240,168,80,0.12), 0 4px 20px rgba(0,0,0,0.5);
-          border-color: rgba(240,168,80,0.28) !important;
+          box-shadow: 0 20px 60px -10px rgba(34,197,94,0.12), 0 4px 20px rgba(0,0,0,0.5);
+          border-color: rgba(34,197,94,0.28) !important;
         }
 
         /* Step cards */
         .step-card { background: var(--navy-card); border: 1px solid var(--navy-border); }
 
-        /* Gold CTA button */
+        /* Primary CTA button */
         .gold-btn {
-          background: linear-gradient(135deg, #f0a850 0%, #e0943a 100%);
-          color: #0d1117;
+          background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+          color: #0A0F1E;
           transition: box-shadow 0.3s ease, transform 0.2s ease;
         }
         .gold-btn:hover {
-          box-shadow: 0 0 0 6px rgba(240,168,80,0.15), 0 8px 30px rgba(240,168,80,0.35);
+          box-shadow: 0 0 0 6px rgba(34,197,94,0.15), 0 8px 30px rgba(34,197,94,0.35);
           transform: translateY(-2px);
         }
 
         /* Outline button */
         .ghost-btn {
-          background: rgba(240,168,80,0.07);
-          border: 1.5px solid rgba(240,168,80,0.30);
+          background: rgba(34,197,94,0.07);
+          border: 1.5px solid rgba(34,197,94,0.30);
           color: var(--gold);
           transition: background 0.2s ease, border-color 0.2s ease;
         }
         .ghost-btn:hover {
-          background: rgba(240,168,80,0.13);
-          border-color: rgba(240,168,80,0.55);
+          background: rgba(34,197,94,0.13);
+          border-color: rgba(34,197,94,0.55);
         }
 
         /* Section pill badges */
         .section-badge {
           display: inline-block;
           border-radius: 9999px;
-          background: rgba(240,168,80,0.10);
-          border: 1px solid rgba(240,168,80,0.22);
-          color: var(--gold);
+          background: rgba(163,230,53,0.10);
+          border: 1px solid rgba(163,230,53,0.22);
+          color: var(--accent);
           font-size: 0.8125rem;
           font-weight: 600;
           padding: 0.375rem 1rem;
@@ -244,7 +225,7 @@ export default function Home() {
         }
 
         /* Divider */
-        .gold-divider { border-color: rgba(240,168,80,0.12); }
+        .gold-divider { border-color: rgba(34,197,94,0.12); }
 
         /* Noise texture overlay */
         .noise-overlay::before {
@@ -267,27 +248,27 @@ export default function Home() {
       `}</style>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden min-h-[90vh] flex items-center noise-overlay" style={{ background: "linear-gradient(135deg, #0d1117 0%, #111822 50%, #131920 100%)" }}>
+      <section className="relative overflow-hidden min-h-[90vh] flex items-center noise-overlay" style={{ background: "linear-gradient(135deg, #0A0F1E 0%, #0E1426 50%, #141C36 100%)" }}>
 
         {/* Dot grid */}
         <div className="absolute inset-0 opacity-[0.06]" style={{
-          backgroundImage: "radial-gradient(circle at 1.5px 1.5px, #f0a850 1.5px, transparent 0)",
+          backgroundImage: "radial-gradient(circle at 1.5px 1.5px, #A3E635 1.5px, transparent 0)",
           backgroundSize: "36px 36px",
         }} />
 
         {/* Ambient blobs */}
-        <div className="hero-blob-gold" style={{ top: "-60px", left: "-80px", width: "480px", height: "380px", background: "rgba(240,168,80,0.07)" }} />
-        <div className="hero-blob-gold" style={{ bottom: "-40px", right: "120px", width: "360px", height: "300px", background: "rgba(59,130,246,0.06)" }} />
-        <div className="hero-blob-gold" style={{ top: "40%", left: "38%", width: "280px", height: "220px", background: "rgba(240,168,80,0.04)" }} />
+        <div className="hero-blob-gold" style={{ top: "-60px", left: "-80px", width: "480px", height: "380px", background: "rgba(163,230,53,0.07)" }} />
+        <div className="hero-blob-gold" style={{ bottom: "-40px", right: "120px", width: "360px", height: "300px", background: "rgba(56,189,248,0.06)" }} />
+        <div className="hero-blob-gold" style={{ top: "40%", left: "38%", width: "280px", height: "220px", background: "rgba(34,197,94,0.04)" }} />
 
         {/* ── GEOMETRIC ILLUSTRATION ── */}
         <div className="illus-wrap hidden lg:block mr-20">
           <svg className="conn-svg" viewBox="0 0 320 360" xmlns="http://www.w3.org/2000/svg">
-            <path d="M160 180 Q110 150 70 95"  fill="none" stroke="rgba(240,168,80,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
-            <path d="M160 180 Q210 148 250 95"  fill="none" stroke="rgba(240,168,80,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
-            <path d="M160 180 Q218 228 255 272" fill="none" stroke="rgba(240,168,80,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
-            <path d="M160 180 Q102 230 65 268"  fill="none" stroke="rgba(240,168,80,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
-            <path d="M88 78 Q160 40 232 78"     fill="none" stroke="rgba(240,168,80,0.08)" strokeWidth="1" strokeDasharray="3 7"/>
+            <path d="M160 180 Q110 150 70 95"  fill="none" stroke="rgba(163,230,53,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
+            <path d="M160 180 Q210 148 250 95"  fill="none" stroke="rgba(163,230,53,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
+            <path d="M160 180 Q218 228 255 272" fill="none" stroke="rgba(163,230,53,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
+            <path d="M160 180 Q102 230 65 268"  fill="none" stroke="rgba(163,230,53,0.15)" strokeWidth="1" strokeDasharray="3 5"/>
+            <path d="M88 78 Q160 40 232 78"     fill="none" stroke="rgba(163,230,53,0.08)" strokeWidth="1" strokeDasharray="3 7"/>
           </svg>
           <div className="orbit-outer" />
           <div className="orbit-inner" />
@@ -298,24 +279,24 @@ export default function Home() {
           <div className="core-glow">
             <div className="core-inner">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3 17V3L17 17V3" stroke="rgba(240,168,80,0.90)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 17V3L17 17V3" stroke="rgba(163,230,53,0.90)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
           </div>
           <div className="stage-node" style={{ top: "58px", left: "8px", "--dur": "6s", "--delay": "0s" } as React.CSSProperties}>
-            <div><span className="dot" style={{ background: "#60a5fa" }} /><span className="lbl">Learn</span></div>
+            <div><span className="dot" style={{ background: "#38BDF8" }} /><span className="lbl">Learn</span></div>
             <div className="sub">Structured programs</div>
           </div>
           <div className="stage-node" style={{ top: "58px", right: "8px", "--dur": "7s", "--delay": "0.9s" } as React.CSSProperties}>
-            <div><span className="dot" style={{ background: "#f0a850" }} /><span className="lbl">Grow</span></div>
+            <div><span className="dot" style={{ background: "#22C55E" }} /><span className="lbl">Grow</span></div>
             <div className="sub">Guided pathways</div>
           </div>
           <div className="stage-node" style={{ bottom: "58px", right: "6px", "--dur": "8s", "--delay": "1.6s" } as React.CSSProperties}>
-            <div><span className="dot" style={{ background: "#34d399" }} /><span className="lbl">Career</span></div>
+            <div><span className="dot" style={{ background: "#A3E635" }} /><span className="lbl">Career</span></div>
             <div className="sub">Real opportunities</div>
           </div>
           <div className="stage-node" style={{ bottom: "60px", left: "6px", "--dur": "6.5s", "--delay": "0.4s" } as React.CSSProperties}>
-            <div><span className="dot" style={{ background: "#c084fc" }} /><span className="lbl">Explore</span></div>
+            <div><span className="dot" style={{ background: "#8899BB" }} /><span className="lbl">Explore</span></div>
             <div className="sub">Resources & research</div>
           </div>
         </div>
@@ -324,20 +305,20 @@ export default function Home() {
           <div className="max-w-2xl">
 
             {/* Badge */}
-            <div className="anim-fade-in inline-flex items-center gap-2 rounded-full px-4 py-2 mb-8 backdrop-blur-sm" style={{ background: "rgba(240,168,80,0.08)", border: "1px solid rgba(240,168,80,0.22)" }}>
-              <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: "#34d399" }} />
-              <span className="text-sm font-medium" style={{ color: "rgba(240,168,80,0.9)", fontFamily: "'Inter', sans-serif" }}>Next-generation learning platform</span>
+            <div className="anim-fade-in inline-flex items-center gap-2 rounded-full px-4 py-2 mb-8 backdrop-blur-sm" style={{ background: "rgba(163,230,53,0.08)", border: "1px solid rgba(163,230,53,0.22)" }}>
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: "#22C55E" }} />
+              <span className="text-sm font-medium" style={{ color: "rgba(163,230,53,0.9)", fontFamily: "'Inter', sans-serif" }}>Next-generation learning platform</span>
             </div>
 
-            <h1 className="font-display anim-fade-up text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6" style={{ color: "#f0f4f8" }}>
+            <h1 className="font-display anim-fade-up text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6" style={{ color: "#F5F5F0" }}>
               Unlocking<br />
               <span className="shimmer-gold">The Next You</span>
             </h1>
 
-            <p className="anim-fade-up-2 font-body text-lg sm:text-xl leading-relaxed mb-4 max-w-xl" style={{ color: "rgba(200,215,230,0.75)" }}>
+            <p className="anim-fade-up-2 font-body text-lg sm:text-xl leading-relaxed mb-4 max-w-xl" style={{ color: "rgba(136,153,187,0.75)" }}>
               A next-generation platform designed to help you learn, grow, and evolve with clarity, purpose, and real-world direction.
             </p>
-            <p className="anim-fade-up-2 font-body text-base mb-10 max-w-lg" style={{ color: "rgba(200,215,230,0.45)" }}>
+            <p className="anim-fade-up-2 font-body text-base mb-10 max-w-lg" style={{ color: "rgba(136,153,187,0.45)" }}>
               Move beyond information. Step into transformation.
             </p>
 
@@ -356,16 +337,15 @@ export default function Home() {
             </div>
 
             {/* Trust bar */}
-            <div className="anim-fade-up-4 mt-14 pt-8 flex gap-x-8 gap-y-3 flex-wrap" style={{ borderTop: "1px solid rgba(240,168,80,0.12)" }}>
+            <div className="anim-fade-up-4 mt-14 pt-8 flex gap-x-8 gap-y-3 flex-wrap" style={{ borderTop: "1px solid rgba(163,230,53,0.12)" }}>
               {[
                 { value: "10,000+", label: "Students" },
                 { value: "50+",     label: "Universities" },
                 { value: "200+",    label: "Programs" },
-                { value: "85%",     label: "Placements" },
               ].map((s) => (
                 <div key={s.label} className="flex items-baseline gap-2">
                   <span className="font-display text-2xl font-bold shimmer-gold">{s.value}</span>
-                  <span className="text-sm" style={{ color: "rgba(200,215,230,0.5)", fontFamily: "'Inter', sans-serif" }}>{s.label}</span>
+                  <span className="text-sm" style={{ color: "rgba(136,153,187,0.5)", fontFamily: "'Inter', sans-serif" }}>{s.label}</span>
                 </div>
               ))}
             </div>
@@ -380,15 +360,15 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <span className="section-badge">Our Vision</span>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold leading-tight mb-6" style={{ color: "#f0f4f8" }}>
+              <h2 className="font-display text-4xl sm:text-5xl font-bold leading-tight mb-6" style={{ color: "#F5F5F0" }}>
                 Built for Growth.<br />
-                <span style={{ color: "var(--gold)" }}>Designed for Progress.</span>
+                <span style={{ color: "var(--accent)" }}>Designed for Progress.</span>
               </h2>
-              <div className="space-y-4 font-body text-base leading-relaxed" style={{ color: "rgba(200,215,230,0.65)" }}>
+              <div className="space-y-4 font-body text-base leading-relaxed" style={{ color: "rgba(136,153,187,0.65)" }}>
                 <p>In a world filled with endless information, finding the right path can be overwhelming.</p>
                 <p>iNEXORA brings everything into one place — not just content, but a clear, guided system that helps you move forward with confidence.</p>
                 <p>From learning new skills to building your career and contributing to knowledge, every step is connected into one continuous journey.</p>
-                <p className="font-semibold" style={{ color: "rgba(200,215,230,0.90)" }}>This is not just a platform. It's a space where progress becomes structured, and potential becomes real.</p>
+                <p className="font-semibold" style={{ color: "#F5F5F0" }}>This is not just a platform. It's a space where progress becomes structured, and potential becomes real.</p>
               </div>
               <button onClick={() => router.push("/about")}
                 className="mt-8 inline-flex items-center gap-2 font-display font-semibold hover:gap-3 transition-all text-sm"
@@ -400,20 +380,20 @@ export default function Home() {
 
             <div className="relative">
               {/* Soft glow behind grid */}
-              <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(240,168,80,0.06) 0%, transparent 70%)" }} />
+              <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(163,230,53,0.06) 0%, transparent 70%)" }} />
               <div className="relative grid grid-cols-2 gap-4 p-8">
                 {[
-                  { icon: BookOpen,   label: "Structured Learning", accent: "#3b82f6",   count: "200+ Programs" },
-                  { icon: TrendingUp, label: "Career Pathways",     accent: "#f0a850",   count: "85% Placement" },
-                  { icon: Award,      label: "Certifications",      accent: "#34d399",   count: "10K+ Earned" },
-                  { icon: Globe,      label: "Global Access",       accent: "#c084fc",   count: "50+ Partners" },
+                  { icon: BookOpen,   label: "Structured Learning", accent: "#38BDF8",   count: "200+ Programs" },
+                  { icon: TrendingUp, label: "Career Pathways",     accent: "#22C55E",   count: "85% Placement" },
+                  { icon: Award,      label: "Certifications",      accent: "#A3E635",   count: "10K+ Earned" },
+                  { icon: Globe,      label: "Global Access",       accent: "#8899BB",   count: "50+ Partners" },
                 ].map(({ icon: Icon, label, accent, count }) => (
-                  <div key={label} className="card-hover rounded-2xl p-5" style={{ background: "var(--navy-card)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div key={label} className="card-hover rounded-2xl p-5" style={{ background: "var(--navy-card)", border: "1px solid rgba(136,153,187,0.12)" }}>
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl mb-3" style={{ background: `${accent}22`, border: `1px solid ${accent}44` }}>
                       <Icon className="h-5 w-5" style={{ color: accent }} />
                     </div>
-                    <p className="font-display font-semibold text-sm" style={{ color: "#f0f4f8" }}>{label}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "rgba(200,215,230,0.40)" }}>{count}</p>
+                    <p className="font-display font-semibold text-sm" style={{ color: "#F5F5F0" }}>{label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "rgba(136,153,187,0.40)" }}>{count}</p>
                   </div>
                 ))}
               </div>
@@ -427,26 +407,26 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <span className="section-badge">How It Works</span>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4" style={{ color: "#f0f4f8" }}>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4" style={{ color: "#F5F5F0" }}>
               A System That Moves You Forward
             </h2>
-            <p className="font-body text-lg max-w-2xl mx-auto" style={{ color: "rgba(200,215,230,0.55)" }}>
+            <p className="font-body text-lg max-w-2xl mx-auto" style={{ color: "rgba(136,153,187,0.55)" }}>
               iNEXORA is designed to guide you through every stage of growth, with clarity at every step.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
-              { num: "01", icon: BookOpen,     accent: "#3b82f6",  title: "Learn with Purpose",        desc: "Gain access to structured learning designed to build real skills and meaningful understanding." },
-              { num: "02", icon: TrendingUp,   accent: "#c084fc",  title: "Grow with Direction",        desc: "Follow guided pathways that help you apply what you learn and stay aligned with your goals." },
-              { num: "03", icon: Briefcase,    accent: "#34d399",  title: "Step Into Opportunity",      desc: "Receive career support and tools that help you confidently move into the professional world." },
-              { num: "04", icon: Layers,       accent: "#f0a850",  title: "Access the Right Resources", desc: "Explore books and study materials that support your learning and deepen your knowledge." },
-              { num: "05", icon: FlaskConical, accent: "#f472b6",  title: "Contribute and Advance",     desc: "Engage in research and publish your work under expert guidance, turning knowledge into impact." },
+              { num: "01", icon: BookOpen,     accent: "#38BDF8",  title: "Learn with Purpose",        desc: "Gain access to structured learning designed to build real skills and meaningful understanding." },
+              { num: "02", icon: TrendingUp,   accent: "#22C55E",  title: "Grow with Direction",        desc: "Follow guided pathways that help you apply what you learn and stay aligned with your goals." },
+              { num: "03", icon: Briefcase,    accent: "#A3E635",  title: "Step Into Opportunity",      desc: "Receive career support and tools that help you confidently move into the professional world." },
+              { num: "04", icon: Layers,       accent: "#8899BB",  title: "Access the Right Resources", desc: "Explore books and study materials that support your learning and deepen your knowledge." },
+              { num: "05", icon: FlaskConical, accent: "#16A34A",  title: "Contribute and Advance",     desc: "Engage in research and publish your work under expert guidance, turning knowledge into impact." },
               { num: null, icon: null,         accent: "",         title: "",                           desc: "" },
             ].map((step, i) => {
               if (!step.num) return (
                 <div key={i} className="card-hover rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-4"
-                  style={{ background: "linear-gradient(135deg, #1a2030 0%, #1e2a3a 100%)", border: "1px solid rgba(240,168,80,0.22)" }}>
-                  <p className="font-display text-xl font-bold" style={{ color: "#f0f4f8" }}>Ready to begin your journey?</p>
+                  style={{ background: "linear-gradient(135deg, #131B30 0%, #1E2B55 100%)", border: "1px solid rgba(34,197,94,0.22)" }}>
+                  <p className="font-display text-xl font-bold" style={{ color: "#F5F5F0" }}>Ready to begin your journey?</p>
                   <button onClick={() => router.push("/signup")}
                     className="gold-btn font-display inline-flex items-center gap-2 rounded-xl font-semibold px-6 py-3 text-sm"
                   >
@@ -463,8 +443,8 @@ export default function Home() {
                     </div>
                     <span className="font-display text-3xl font-bold" style={{ color: "rgba(255,255,255,0.08)" }}>{step.num}</span>
                   </div>
-                  <h3 className="font-display text-lg font-bold mb-2" style={{ color: "#f0f4f8" }}>{step.title}</h3>
-                  <p className="font-body text-sm leading-relaxed" style={{ color: "rgba(200,215,230,0.55)" }}>{step.desc}</p>
+                  <h3 className="font-display text-lg font-bold mb-2" style={{ color: "#F5F5F0" }}>{step.title}</h3>
+                  <p className="font-body text-sm leading-relaxed" style={{ color: "rgba(136,153,187,0.55)" }}>{step.desc}</p>
                 </div>
               );
             })}
@@ -477,31 +457,31 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <span className="section-badge">Why iNEXORA</span>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4" style={{ color: "#f0f4f8" }}>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4" style={{ color: "#F5F5F0" }}>
               More Than Learning.<br />
-              <span style={{ color: "var(--gold)" }}>A Complete Growth System.</span>
+              <span style={{ color: "var(--accent)" }}>A Complete Growth System.</span>
             </h2>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Layers,       accent: "#3b82f6", title: "Everything in One Place",           desc: "No more scattered platforms. Learning, career support, resources, and research come together in one seamless experience." },
-              { icon: TrendingUp,   accent: "#f0a850", title: "Clarity at Every Step",             desc: "We remove confusion and provide direction, so you always know what to do next." },
-              { icon: Award,        accent: "#34d399", title: "Focused on Real Outcomes",          desc: "Beyond theory and passive learning. Everything is designed to help you achieve measurable progress." },
-              { icon: FlaskConical, accent: "#f472b6", title: "Built for Continuous Growth",       desc: "From your first step to advanced levels, iNEXORA grows with you at every stage." },
-              { icon: Users,        accent: "#c084fc", title: "Centered Around You",               desc: "Every feature is designed to support your journey, helping you unlock your next level with confidence." },
-              { icon: Globe,        accent: "#f0a850", title: "Global Standards, Local Relevance", desc: "UGC/TVEC approved programs meeting national standards with global perspective." },
+              { icon: Layers,       accent: "#38BDF8", title: "Everything in One Place",           desc: "No more scattered platforms. Learning, career support, resources, and research come together in one seamless experience." },
+              { icon: TrendingUp,   accent: "#22C55E", title: "Clarity at Every Step",             desc: "We remove confusion and provide direction, so you always know what to do next." },
+              { icon: Award,        accent: "#A3E635", title: "Focused on Real Outcomes",          desc: "Beyond theory and passive learning. Everything is designed to help you achieve measurable progress." },
+              { icon: FlaskConical, accent: "#8899BB", title: "Built for Continuous Growth",       desc: "From your first step to advanced levels, iNEXORA grows with you at every stage." },
+              { icon: Users,        accent: "#16A34A", title: "Centered Around You",               desc: "Every feature is designed to support your journey, helping you unlock your next level with confidence." },
+              { icon: Globe,        accent: "#84CC16", title: "Global Standards, Local Relevance", desc: "UGC/TVEC approved programs meeting national standards with global perspective." },
             ].map(({ icon: Icon, accent, title, desc }) => (
               <div key={title} className="card-hover group relative rounded-2xl p-7 overflow-hidden"
-                style={{ background: "var(--navy-card)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                style={{ background: "var(--navy-card)", border: "1px solid rgba(136,153,187,0.12)" }}>
                 {/* Hover gradient overlay */}
                 <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{ background: "radial-gradient(ellipse 80% 60% at 20% 30%, rgba(240,168,80,0.05) 0%, transparent 70%)" }} />
+                  style={{ background: "radial-gradient(ellipse 80% 60% at 20% 30%, rgba(34,197,94,0.05) 0%, transparent 70%)" }} />
                 <div className="relative">
                   <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl mb-5" style={{ background: `${accent}18`, border: `1px solid ${accent}33` }}>
                     <Icon className="h-6 w-6" style={{ color: accent }} />
                   </div>
-                  <h3 className="font-display text-lg font-bold mb-2" style={{ color: "#f0f4f8" }}>{title}</h3>
-                  <p className="font-body text-sm leading-relaxed" style={{ color: "rgba(200,215,230,0.55)" }}>{desc}</p>
+                  <h3 className="font-display text-lg font-bold mb-2" style={{ color: "#F5F5F0" }}>{title}</h3>
+                  <p className="font-body text-sm leading-relaxed" style={{ color: "rgba(136,153,187,0.55)" }}>{desc}</p>
                   <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--gold)", fontFamily: "'Sora', sans-serif" }}>
                     <CheckCircle className="h-3.5 w-3.5" /> Included in your plan
                   </div>
@@ -516,45 +496,45 @@ export default function Home() {
       <section className="py-24" style={{ background: "var(--navy-base)" }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <h2 className="font-display text-4xl font-bold mb-4" style={{ color: "#f0f4f8" }}>Built for Every Stakeholder</h2>
-            <p className="font-body text-lg max-w-xl mx-auto" style={{ color: "rgba(200,215,230,0.50)" }}>One platform, three powerful perspectives</p>
+            <h2 className="font-display text-4xl font-bold mb-4" style={{ color: "#F5F5F0" }}>Built for Every Stakeholder</h2>
+            <p className="font-body text-lg max-w-xl mx-auto" style={{ color: "rgba(136,153,187,0.50)" }}>One platform, three powerful perspectives</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                icon: Users,     accent: "#3b82f6",
+                icon: Users,     accent: "#38BDF8",
                 title: "Students",     tagline: "Grow your potential",
                 points: ["Discover accredited programs","Build stackable credentials","Access career opportunities","Track your progress"],
                 cta: "Explore as Student", href: "/signup",
               },
               {
-                icon: Building2, accent: "#f0a850",
+                icon: Building2, accent: "#22C55E",
                 title: "Universities", tagline: "Expand your reach",
                 points: ["List and manage programs","Connect with students globally","Track enrollment outcomes","Manage lecturer assignments"],
                 cta: "Partner with Us", href: "/contact",
               },
               {
-                icon: Briefcase, accent: "#34d399",
+                icon: Briefcase, accent: "#A3E635",
                 title: "Employers",    tagline: "Find top talent",
                 points: ["Post job opportunities","Access skilled graduates","Offer internship programs","Build your talent pipeline"],
                 cta: "Start Hiring", href: "/signup",
               },
             ].map(({ icon: Icon, accent, title, tagline, points, cta, href }) => (
-              <div key={title} className="card-hover rounded-2xl overflow-hidden" style={{ background: "var(--navy-card)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div key={title} className="card-hover rounded-2xl overflow-hidden" style={{ background: "var(--navy-card)", border: "1px solid rgba(136,153,187,0.12)" }}>
                 {/* Card header */}
                 <div className="px-7 py-6" style={{ background: `linear-gradient(135deg, ${accent}22 0%, ${accent}0d 100%)`, borderBottom: `1px solid ${accent}22` }}>
                   <div className="flex items-center gap-3 mb-1">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${accent}22`, border: `1px solid ${accent}44` }}>
                       <Icon className="h-5 w-5" style={{ color: accent }} />
                     </div>
-                    <h3 className="font-display text-xl font-bold" style={{ color: "#f0f4f8" }}>{title}</h3>
+                    <h3 className="font-display text-xl font-bold" style={{ color: "#F5F5F0" }}>{title}</h3>
                   </div>
-                  <p className="text-sm mt-1" style={{ color: "rgba(200,215,230,0.50)", fontFamily: "'Inter',sans-serif" }}>{tagline}</p>
+                  <p className="text-sm mt-1" style={{ color: "rgba(136,153,187,0.50)", fontFamily: "'Inter',sans-serif" }}>{tagline}</p>
                 </div>
                 <div className="px-7 py-6">
                   <ul className="space-y-3 mb-7">
                     {points.map((pt) => (
-                      <li key={pt} className="flex items-start gap-2.5 text-sm" style={{ color: "rgba(200,215,230,0.65)", fontFamily: "'Inter',sans-serif" }}>
+                      <li key={pt} className="flex items-start gap-2.5 text-sm" style={{ color: "rgba(136,153,187,0.65)", fontFamily: "'Inter',sans-serif" }}>
                         <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: accent }} />
                         {pt}
                       </li>
@@ -576,31 +556,31 @@ export default function Home() {
       </section>
 
       {/* ── CLOSING CTA ──────────────────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden noise-overlay" style={{ background: "linear-gradient(135deg, #0d1117 0%, #131920 50%, #111822 100%)" }}>
+      <section className="py-24 relative overflow-hidden noise-overlay" style={{ background: "linear-gradient(135deg, #0A0F1E 0%, #141C36 50%, #0E1426 100%)" }}>
         {/* Dot grid */}
         <div className="absolute inset-0 opacity-[0.05]" style={{
-          backgroundImage: "radial-gradient(circle at 2px 2px, #f0a850 1.5px, transparent 0)",
+          backgroundImage: "radial-gradient(circle at 2px 2px, #A3E635 1.5px, transparent 0)",
           backgroundSize: "30px 30px",
         }} />
         {/* Blobs */}
-        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full pointer-events-none" style={{ background: "rgba(240,168,80,0.06)", filter: "blur(80px)" }} />
-        <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full pointer-events-none" style={{ background: "rgba(59,130,246,0.05)", filter: "blur(80px)" }} />
-        {/* Gold ring accent */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none" style={{ border: "1px solid rgba(240,168,80,0.06)" }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full pointer-events-none" style={{ border: "1px dashed rgba(240,168,80,0.05)" }} />
+        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full pointer-events-none" style={{ background: "rgba(163,230,53,0.06)", filter: "blur(80px)" }} />
+        <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full pointer-events-none" style={{ background: "rgba(56,189,248,0.05)", filter: "blur(80px)" }} />
+        {/* Accent ring */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none" style={{ border: "1px solid rgba(163,230,53,0.06)" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full pointer-events-none" style={{ border: "1px dashed rgba(163,230,53,0.05)" }} />
 
         <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-          <span className="font-display inline-block rounded-full text-sm font-medium px-4 py-1.5 mb-8" style={{ background: "rgba(240,168,80,0.08)", border: "1px solid rgba(240,168,80,0.20)", color: "rgba(240,168,80,0.80)" }}>
+          <span className="font-display inline-block rounded-full text-sm font-medium px-4 py-1.5 mb-8" style={{ background: "rgba(163,230,53,0.08)", border: "1px solid rgba(163,230,53,0.20)", color: "rgba(163,230,53,0.80)" }}>
             Your journey starts here
           </span>
-          <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6" style={{ color: "#f0f4f8" }}>
+          <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6" style={{ color: "#F5F5F0" }}>
             Your Next Step<br />
             <span className="shimmer-gold">Starts Here</span>
           </h2>
-          <p className="font-body text-lg max-w-2xl mx-auto mb-4" style={{ color: "rgba(200,215,230,0.65)" }}>
+          <p className="font-body text-lg max-w-2xl mx-auto mb-4" style={{ color: "rgba(136,153,187,0.65)" }}>
             The future you are working towards is not far away. It begins with the right system, the right direction, and the right support.
           </p>
-          <p className="font-body text-base mb-12" style={{ color: "rgba(200,215,230,0.38)" }}>
+          <p className="font-body text-base mb-12" style={{ color: "rgba(136,153,187,0.38)" }}>
             iNEXORA is here to guide that journey.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -612,7 +592,7 @@ export default function Home() {
             </button>
             <button onClick={() => router.push("/programs")}
               className="font-display inline-flex items-center gap-2 font-medium hover:opacity-100 transition text-sm"
-              style={{ color: "rgba(200,215,230,0.55)" }}
+              style={{ color: "rgba(136,153,187,0.55)" }}
             >
               Browse programs <ArrowRight className="h-4 w-4" />
             </button>

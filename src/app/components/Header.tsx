@@ -132,8 +132,8 @@ export default function Header() {
                 href={item.path}
                 className={`text-sm font-medium transition-colors ${
                   pathname === item.path
-                    ? "text-[#f0a850]"
-                    : "text-[#ffffff] hover:text-yellow-600"
+                    ? "text-[#22C55E]"
+                    : "text-[#ffffff] hover:text-[#22C55E]"
                 }`}
               >
                 {item.name}
@@ -207,13 +207,13 @@ export default function Header() {
               <div className="flex items-center space-x-3">
                 <Link
                   href="/login"
-                  className="px-3 py-2 text-sm font-medium text-[#f0a850] transition hover:text-white"
+                  className="px-3 py-2 text-sm font-medium text-[#22C55E] transition hover:text-[#A3E635]"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-lg bg-[#f0a850] px-4 py-2 text-sm font-medium text-black transition hover:bg-white"
+                  className="rounded-lg bg-[#22C55E] px-4 py-2 text-sm font-medium text-black transition hover:text-[#A3E635] hover:bg-[#141C36]"
                 >
                   Get Started
                 </Link>
