@@ -45,5 +45,5 @@ yarn-error.log*
 # idea files
 .idea
 
-src/app/\(public\)/maintenance/
-src/app/\(public\)/maintenance/page.tsx
+# src/app/\(public\)/maintenance/
+# src/app/\(public\)/maintenance/page.tsx
