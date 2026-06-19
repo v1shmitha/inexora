@@ -22,16 +22,16 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div className="ml-35">
-            <h3 className="mb-4 font-semibold text-white">Quick Links</h3>
+            <h3 className="mb-4 font-semibold text-[#22C55E]">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/careers" className="transition hover:text-white">
-                  Careers
+                <Link href="/programs" className="transition hover:text-white">
+                  Programs
                 </Link>
               </li>
               <li>
-                <Link href="/universities" className="transition hover:text-white">
-                  Universities
+                <Link href="/careers" className="transition hover:text-white">
+                  Careers
                 </Link>
               </li>
               <li>
@@ -49,25 +49,25 @@ export default function Footer() {
 
           {/* Resources */}
           <div className="ml-25">
-            <h3 className="mb-4 font-semibold text-white">Resources</h3>
+            <h3 className="mb-4 font-semibold text-[#22C55E]">Resources</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/resources" className="transition hover:text-white">
+                <Link href="/maintenance" className="transition hover:text-white">
                   Digital Library
                 </Link>
               </li>
               <li>
-                <Link href="/support" className="transition hover:text-white">
+                <Link href="/maintenance" className="transition hover:text-white">
                   Student Support
                 </Link>
               </li>
               <li>
-                <Link href="/partners" className="transition hover:text-white">
+                <Link href="/maintenance" className="transition hover:text-white">
                   Partner Portal
                 </Link>
               </li>
               <li>
-                <Link href="/research" className="transition hover:text-white">
+                <Link href="/maintenance" className="transition hover:text-white">
                   Research Hub
                 </Link>
               </li>
@@ -76,7 +76,7 @@ export default function Footer() {
 
           {/* Contact */}
           <div className="ml-15">
-            <h3 className="mb-4 font-semibold text-white">Contact</h3>
+            <h3 className="mb-4 font-semibold text-[#22C55E]">Contact</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start space-x-2">
                 <MapPin className="mt-1 h-4 w-4 flex-shrink-0" />

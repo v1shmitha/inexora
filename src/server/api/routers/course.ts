@@ -1,8 +1,94 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  lecturerProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 
 export const courseRouter = createTRPCRouter({
+  // ── GET: public list of standalone courses + modules ───────────────────
+  listPublic: publicProcedure
+    .input(
+      z.object({
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.course.findMany({
+        where: {
+          isPublished: true,
+          isStandalone: true,
+          ...(input.search && {
+            OR: [
+              { title: { contains: input.search, mode: "insensitive" } },
+              { code: { contains: input.search, mode: "insensitive" } },
+              { description: { contains: input.search, mode: "insensitive" } },
+            ],
+          }),
+        },
+        select: {
+          id: true,
+          title: true,
+          code: true,
+          description: true,
+          isStandalone: true,
+          localPrice: true,
+          foreignPrice: true,
+          createdAt: true,
+          courseLecturers: {
+            select: {
+              lecturer: {
+                select: {
+                  title: true,
+                  profile: { select: { fullName: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }),
+
+  // ── GET: public single course/module by id ──────────────────────────────
+  getPublicById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const course = await ctx.db.course.findFirst({
+        where: { id: input.id, isPublished: true, isStandalone: true },
+        select: {
+          id: true,
+          title: true,
+          code: true,
+          description: true,
+          isStandalone: true,
+          isMandatory: true,
+          creditHours: true,
+          semester: true,
+          year: true,
+          localPrice: true,
+          foreignPrice: true,
+          courseLecturers: {
+            select: {
+              lecturer: {
+                select: {
+                  title: true,
+                  profile: { select: { fullName: true } },
+                },
+              },
+            },
+          },
+          sections: {
+            select: { id: true, title: true },
+            orderBy: { orderIndex: "asc" },
+          },
+        },
+      });
+      if (!course)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Course not found" });
+      return course;
+    }),
 
   getById: lecturerProcedure
     .input(z.object({ id: z.string() }))
@@ -41,7 +127,7 @@ export const courseRouter = createTRPCRouter({
       }
 
       const hasAccess = course.courseLecturers.some(
-        (cl) => cl.lecturerId === lecturer.id
+        (cl) => cl.lecturerId === lecturer.id,
       );
 
       if (!hasAccess && course.createdById !== lecturer.id) {
@@ -118,14 +204,16 @@ export const courseRouter = createTRPCRouter({
 
   // ── CREATE: standalone course ─────────────────────────────────────────
   createCourse: lecturerProcedure
-    .input(z.object({
-      title: z.string().min(2),
-      code: z.string().optional().nullable(),
-      description: z.string().optional().nullable(),
-      localPrice: z.number().positive().optional().nullable(),
-      foreignPrice: z.number().positive().optional().nullable(),
-      isPublished: z.boolean().default(false),
-    }))
+    .input(
+      z.object({
+        title: z.string().min(2),
+        code: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
+        localPrice: z.number().positive().optional().nullable(),
+        foreignPrice: z.number().positive().optional().nullable(),
+        isPublished: z.boolean().default(false),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const course = await ctx.db.course.create({
         data: {
@@ -147,14 +235,16 @@ export const courseRouter = createTRPCRouter({
 
   // ── CREATE: module (linked to a program) ──────────────────────────────
   createModule: lecturerProcedure
-    .input(z.object({
-      programId: z.string(),
-      title: z.string().min(2),
-      code: z.string().optional().nullable(),
-      description: z.string().optional().nullable(),
-      isMandatory: z.boolean().default(true),
-      // FIX: orderIndex is now auto-calculated — not accepted from client
-    }))
+    .input(
+      z.object({
+        programId: z.string(),
+        title: z.string().min(2),
+        code: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
+        isMandatory: z.boolean().default(true),
+        // FIX: orderIndex is now auto-calculated — not accepted from client
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const program = await ctx.db.program.findUnique({
         where: { id: input.programId },
@@ -167,7 +257,10 @@ export const courseRouter = createTRPCRouter({
       });
 
       if (!program) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Program not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Program not found",
+        });
       }
 
       if (program.institutionId !== ctx.lecturer.institutionId) {
@@ -219,7 +312,10 @@ export const courseRouter = createTRPCRouter({
       // CourseEnrollment row for each of them so they can access this
       // new module immediately without re-enrolling
       const programEnrollments = await ctx.db.enrollment.findMany({
-        where: { programId: input.programId, status: { in: ["ACTIVE", "APPROVED"] } },
+        where: {
+          programId: input.programId,
+          status: { in: ["ACTIVE", "APPROVED"] },
+        },
         select: { id: true, studentId: true },
       });
 
@@ -240,17 +336,19 @@ export const courseRouter = createTRPCRouter({
 
   // ── UPDATE ────────────────────────────────────────────────────────────
   update: lecturerProcedure
-    .input(z.object({
-      id: z.string(),
-      title: z.string().min(2).optional(),
-      code: z.string().optional().nullable(),
-      description: z.string().optional().nullable(),
-      localPrice: z.number().positive().optional().nullable(),
-      foreignPrice: z.number().positive().optional().nullable(),
-      isPublished: z.boolean().optional(),
-      isMandatory: z.boolean().optional(),
-      orderIndex: z.number().int().min(0).optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(2).optional(),
+        code: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
+        localPrice: z.number().positive().optional().nullable(),
+        foreignPrice: z.number().positive().optional().nullable(),
+        isPublished: z.boolean().optional(),
+        isMandatory: z.boolean().optional(),
+        orderIndex: z.number().int().min(0).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
 
@@ -267,7 +365,7 @@ export const courseRouter = createTRPCRouter({
 
       const isCreator = course.createdById === ctx.lecturer.id;
       const isAssigned = course.courseLecturers.some(
-        (cl) => cl.lecturerId === ctx.lecturer.id
+        (cl) => cl.lecturerId === ctx.lecturer.id,
       );
 
       if (!isCreator && !isAssigned) {
@@ -300,7 +398,7 @@ export const courseRouter = createTRPCRouter({
 
       const isCreator = course.createdById === ctx.lecturer.id;
       const isAssigned = course.courseLecturers.some(
-        (cl) => cl.lecturerId === ctx.lecturer.id
+        (cl) => cl.lecturerId === ctx.lecturer.id,
       );
 
       if (!isCreator && !isAssigned) {
@@ -333,7 +431,7 @@ export const courseRouter = createTRPCRouter({
 
       const isCreator = course.createdById === ctx.lecturer.id;
       const isAssigned = course.courseLecturers.some(
-        (cl) => cl.lecturerId === ctx.lecturer.id
+        (cl) => cl.lecturerId === ctx.lecturer.id,
       );
 
       if (!isCreator && !isAssigned) {
@@ -345,7 +443,9 @@ export const courseRouter = createTRPCRouter({
 
       await ctx.db.courseLecturer.deleteMany({ where: { courseId: input.id } });
       await ctx.db.assessment.deleteMany({ where: { courseId: input.id } });
-      await ctx.db.courseEnrollment.deleteMany({ where: { courseId: input.id } });
+      await ctx.db.courseEnrollment.deleteMany({
+        where: { courseId: input.id },
+      });
 
       return ctx.db.course.delete({ where: { id: input.id } });
     }),

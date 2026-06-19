@@ -76,15 +76,16 @@ export default function Header() {
     { name: "Home", path: "/" },
     { name: "About", path: "/about" },
     { name: "Programs", path: "/programs" },
-    { name: "Universities", path: "/universities" },
-    { name: "Contact", path: "/contact" },
+    { name: "Courses", path: "/courses" },
+    { name: "Careers", path: "/maintenance" },
+    // { name: "Contact", path: "/contact" },
   ];
 
   const studentNavigation = [
     { name: "Programs", path: "/programs" },
     { name: "Universities", path: "/universities" },
     { name: "Resources", path: "/resources" },
-    { name: "Careers", path: "/careers" },
+    { name: "Careers", path: "/maintenance" },
     { name: "Dashboard", path: "/dashboard" },
   ];
 
@@ -133,7 +134,7 @@ export default function Header() {
                 className={`text-sm font-medium transition-colors ${
                   pathname === item.path
                     ? "text-[#22C55E]"
-                    : "text-[#ffffff] hover:text-[#22C55E]"
+                    : "text-[#ffffff] hover:text-[#8899BB]"
                 }`}
               >
                 {item.name}
@@ -213,7 +214,7 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-lg bg-[#22C55E] px-4 py-2 text-sm font-medium text-black transition hover:text-[#A3E635] hover:bg-[#141C36]"
+                  className="rounded-lg bg-[#22C55E] px-4 py-2 text-sm font-medium text-black transition hover:bg-[#16A34A]"
                 >
                   Get Started
                 </Link>

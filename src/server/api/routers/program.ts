@@ -78,7 +78,7 @@ export const programRouter = createTRPCRouter({
           institution: { select: { id: true, name: true, city: true, country: true, isVerified: true, website: true, email: true } },
           courses: {
             where: { isPublished: true },
-            select: { id: true, title: true, isMandatory: true, orderIndex: true },
+            select: { id: true, title: true, description: true, isMandatory: true, orderIndex: true },
             orderBy: { orderIndex: "asc" },
           },
         },
