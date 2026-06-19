@@ -74,10 +74,10 @@ export default function Header() {
 
   const publicNavigation = [
     { name: "Home", path: "/" },
-    { name: "About", path: "/about" },
     { name: "Programs", path: "/programs" },
     { name: "Courses", path: "/courses" },
     { name: "Careers", path: "/maintenance" },
+    { name: "About", path: "/about" },
     // { name: "Contact", path: "/contact" },
   ];
 
