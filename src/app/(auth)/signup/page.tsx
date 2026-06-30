@@ -131,7 +131,7 @@ export default function Signup() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/redirect?next=/profile-setup`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/profile-setup`,
         },
       });
       if (error) throw error;

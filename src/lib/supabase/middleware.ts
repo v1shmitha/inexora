@@ -25,11 +25,19 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  const pathname = request.nextUrl.pathname;
+
+  // /auth/callback must be excluded from all middleware logic — it's a
+  // one-time PKCE code exchange, not a page. Running getUser() here can
+  // race with the route handler's exchangeCodeForSession and trigger
+  // "flow_state_already_used" errors.
+  if (pathname.startsWith("/auth/callback")) {
+    return supabaseResponse;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
 
   const isPublicPath =
     pathname === "/" ||
