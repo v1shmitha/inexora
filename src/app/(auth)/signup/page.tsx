@@ -108,7 +108,7 @@ function RolePickerModal({
         <div className="mb-6">
           <span className="tag mb-4 inline-block">One quick step</span>
           <h2 className="font-display text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
-            How will you use iNEXORA?
+            How will you use Merittz?
           </h2>
           <p className="font-body text-sm" style={{ color: "var(--text-secondary)" }}>
             This sets up the right tools for your {providerLabel} account from day one. You can&apos;t change this later.
@@ -338,7 +338,7 @@ export default function Signup() {
         <div className="absolute bottom-0 left-0 w-[320px] h-[260px] rounded-full pointer-events-none" style={{ background: "radial-gradient(ellipse at bottom left, rgba(34,197,94,0.08) 0%, transparent 65%)" }} />
 
         <button type="button" onClick={() => router.push("/")} className="relative font-display text-xl font-bold tracking-tight anim-fade-up" style={{ color: "var(--text-primary)" }}>
-          iNEX<span className="shimmer-gold">ORA</span>
+          Meritt<span className="shimmer-gold">z</span>
         </button>
 
         <div className="relative anim-fade-up-2">
@@ -348,7 +348,7 @@ export default function Signup() {
             Your structured path<br />to <span className="shimmer-gold">what's next.</span>
           </h1>
           <p className="font-body text-sm leading-relaxed mb-8 max-w-xs" style={{ color: "var(--text-secondary)" }}>
-            iNEXORA connects learning and careers in one place — built for students, educators, and employers across Sri Lanka.
+            Merittz connects learning and careers in one place — built for students, educators, and employers across Sri Lanka.
           </p>
 
           <div className="space-y-4">
@@ -369,7 +369,7 @@ export default function Signup() {
         </div>
 
         <p className="relative font-body text-xs anim-fade-up-3" style={{ color: "var(--text-muted)" }}>
-          © {new Date().getFullYear()} iNEXORA by Laelapsion. All rights reserved.
+          © {new Date().getFullYear()} Merittz. All rights reserved.
         </p>
       </div>
 
@@ -390,7 +390,7 @@ export default function Signup() {
         <div className="w-full max-w-[420px] anim-fade-up">
           <div className="mb-6 lg:hidden">
             <span className="font-display text-lg font-bold" style={{ color: "var(--text-primary)" }}>
-              iNEX<span className="shimmer-gold">ORA</span>
+              Meritt<span className="shimmer-gold">z</span>
             </span>
           </div>
 
@@ -492,7 +492,7 @@ export default function Signup() {
               </form>
 
               <p className="mt-8 text-center font-body text-xs" style={{ color: "var(--text-muted)" }}>
-                By continuing, you agree to iNEXORA&apos;s{" "}
+                By continuing, you agree to Merittz&apos;s{" "}
                 <Link href="/terms" className="underline" style={{ color: "var(--text-secondary)" }}>Terms</Link>{" "}and{" "}
                 <Link href="/privacy" className="underline" style={{ color: "var(--text-secondary)" }}>Privacy Policy</Link>.
               </p>

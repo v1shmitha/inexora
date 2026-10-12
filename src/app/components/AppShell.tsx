@@ -131,7 +131,7 @@ export default function AppShell({
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-navy-border bg-navy-base px-4 md:hidden">
         <Link href={homeHref} className="flex items-center">
-          <img src="/logo.png" alt="iNEXORA" className="h-8 w-auto" />
+          <img src="/logo.png" alt="Merittz" className="h-8 w-auto" />
         </Link>
         <button
           onClick={() => setMobileOpen(true)}
@@ -158,7 +158,7 @@ export default function AppShell({
       >
         <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-navy-border px-4">
           <Link href={homeHref} className="flex items-center">
-            <img src="/logo.png" alt="iNEXORA" className="h-9 w-auto" />
+            <img src="/logo.png" alt="Merittz" className="h-9 w-auto" />
           </Link>
           <button
             onClick={() => setMobileOpen(false)}

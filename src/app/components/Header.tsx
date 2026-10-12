@@ -112,12 +112,12 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-navy-border bg-navy-base font-sans">
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <nav className="relative w-full px-6 lg:px-10">
         <div className="flex h-16 items-center justify-between">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <img src="/logo3.png" alt="iNEXORA" className="h-10 w-36" />
+          <Link href="/" className="flex items-center space-x-2 ml-6.5">
+            <img src="/logo1.png" alt="Merittz" className="h-10 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -138,7 +138,7 @@ export default function Header() {
           </div>
 
           {/* Desktop Auth/Profile */}
-          <div className="hidden items-center space-x-4 md:flex">
+          <div className="hidden items-center space-x-4 md:flex mr-6">
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -214,7 +214,7 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                  className="rounded-lg bg-[#22C55E] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
                 >
                   Get Started
                 </Link>
@@ -297,7 +297,7 @@ export default function Header() {
                 <Link
                   href="/signup"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full rounded-lg bg-brand py-2 text-center text-sm font-medium text-white"
+                  className="w-full rounded-lg bg-[#22C55E] py-2 text-center text-sm font-medium text-white"
                 >
                   Get Started
                 </Link>

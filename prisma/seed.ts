@@ -368,7 +368,7 @@ const defaultCourses = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("🌱 Starting iNEXORA seed...\n");
+  console.log("🌱 Starting Merittz seed...\n");
 
   // Clear existing data in correct order
   console.log("🗑️  Clearing existing data...");

@@ -1060,7 +1060,7 @@ export default function AdminDashboard({
             <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-wide">iNEXORA</p>
+            <p className="text-sm font-bold tracking-wide">Merittz</p>
             <p className="text-xs text-slate-400">Admin Panel</p>
           </div>
         </div>
@@ -1131,7 +1131,7 @@ export default function AdminDashboard({
                           activeTab.slice(1)}
               </h1>
               <p className="text-xs text-slate-500">
-                iNEXORA Platform Administration
+                Merittz Platform Administration
               </p>
             </div>
           </div>

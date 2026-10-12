@@ -1,5 +1,5 @@
 -- =============================================================================
--- iNEXORA — Supabase Setup Script (IDEMPOTENT)
+-- Merittz — Supabase Setup Script (IDEMPOTENT)
 -- Safe to run multiple times — will not error if already applied.
 -- Run this in Supabase SQL Editor after every `prisma migrate reset`.
 -- Keep this file in sync with schema.prisma
@@ -362,7 +362,7 @@ END $$;
 -- WHERE p.id IS NULL;
 
 -- =============================================================================
--- iNEXORA — Complete RLS Policy Expansion (IDEMPOTENT)
+-- Merittz — Complete RLS Policy Expansion (IDEMPOTENT)
 -- Run this in Supabase SQL Editor, then add to setup.sql and migration.
 -- Covers all tables not yet protected + fills gaps on existing ones.
 -- =============================================================================

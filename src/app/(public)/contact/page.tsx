@@ -11,15 +11,15 @@ export default function Contact() {
       icon: Users,
       title: "For Students",
       description: "Questions about programs, applications, or your student journey?",
-      email: "students@inexora.lk",
+      email: "students@merittz.com",
       action: "Student Portal",
       accent: "#22C55E",
     },
     {
       icon: Building2,
       title: "For Universities",
-      description: "Interested in partnering with iNEXORA?",
-      email: "partners@inexora.lk",
+      description: "Interested in partnering with Merittz?",
+      email: "partners@merittz.com",
       action: "Partner With Us",
       accent: "#22C55E",
     },
@@ -27,7 +27,7 @@ export default function Contact() {
       icon: Briefcase,
       title: "For Employers",
       description: "Looking to recruit talent or post opportunities?",
-      email: "employers@inexora.lk",
+      email: "employers@merittz.com",
       action: "Employer Access",
       accent: "#22C55E",
     },
@@ -35,7 +35,7 @@ export default function Contact() {
       icon: Shield,
       title: "For Government & NGOs",
       description: "Collaboration and regulatory inquiries.",
-      email: "info@inexora.lk",
+      email: "info@merittz.com",
       action: "Contact Us",
       accent: "#22C55E",
     },
@@ -187,9 +187,9 @@ export default function Contact() {
                 <p className="font-body text-sm" style={{ color: "var(--text-muted)" }}>
                   Prefer to reach out directly?
                 </p>
-                <a href="mailto:info@inexora.lk" className="font-display text-base font-semibold mt-1 inline-flex items-center gap-2"
+                <a href="mailto:info@merittz.com" className="font-display text-base font-semibold mt-1 inline-flex items-center gap-2"
                   style={{ color: "var(--gold)" }}>
-                  info@inexora.lk <ArrowRight className="h-4 w-4" />
+                  info@merittz.com <ArrowRight className="h-4 w-4" />
                 </a>
               </div>
             </div>
@@ -264,7 +264,7 @@ export default function Contact() {
               </div>
               <div className="info-item">
                 <Mail className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: "#38BDF8" }} />
-                <p className="font-body text-sm" style={{ color: "var(--text-secondary)" }}>info@inexora.lk</p>
+                <p className="font-body text-sm" style={{ color: "var(--text-secondary)" }}>info@merittz.com</p>
               </div>
             </div>
 
@@ -303,7 +303,7 @@ export default function Contact() {
                 Ready to transform education?
               </h3>
               <p className="font-body text-sm leading-relaxed mb-6 flex-1" style={{ color: "var(--text-secondary)" }}>
-                Join thousands already benefiting from iNEXORA's unified education platform.
+                Join thousands already benefiting from Merittz's unified education platform.
               </p>
               <button
                 onClick={() => router.push("/signup")}

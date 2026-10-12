@@ -225,7 +225,7 @@ function LoginForm() {
             className="font-display text-xl font-bold tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            iNEX<span className="shimmer-gold">ORA</span>
+            Meritt<span className="shimmer-gold">z</span>
           </button>
         </div>
 
@@ -262,7 +262,7 @@ function LoginForm() {
         </div>
 
         <p className="relative font-body text-xs anim-fade-up-3" style={{ color: "var(--text-muted)" }}>
-          © {new Date().getFullYear()} iNEXORA. All rights reserved.
+          © {new Date().getFullYear()} Merittz. All rights reserved.
         </p>
       </div>
 
@@ -426,7 +426,7 @@ function LoginForm() {
           </form>
 
           <p className="mt-8 text-center font-body text-xs" style={{ color: "var(--text-muted)" }}>
-            By continuing, you agree to iNEXORA&apos;s{" "}
+            By continuing, you agree to Merittz&apos;s{" "}
             <Link href="/terms" className="underline" style={{ color: "var(--text-secondary)" }}>Terms</Link>{" "}
             and{" "}
             <Link href="/privacy" className="underline" style={{ color: "var(--text-secondary)" }}>Privacy Policy</Link>.
