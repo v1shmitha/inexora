@@ -194,7 +194,7 @@ export default function SetPasswordPage() {
             Secure your<br /><span className="shimmer-gold">institution account.</span>
           </h1>
           <p className="font-body text-base leading-relaxed mb-10 max-w-sm" style={{ color: "var(--text-secondary)" }}>
-            You've been granted access to manage your institution on iNEXORA. Set a strong password to get started.
+            You've been granted access to manage your institution on Merittz. Set a strong password to get started.
           </p>
 
           <div>
@@ -220,7 +220,7 @@ export default function SetPasswordPage() {
         </div>
 
         <p className="relative font-body text-xs anim-fade-up-3" style={{ color: "var(--text-muted)" }}>
-          © {new Date().getFullYear()} iNEXORA. All rights reserved.
+          © {new Date().getFullYear()} Merittz. All rights reserved.
         </p>
       </div>
 
@@ -371,7 +371,7 @@ export default function SetPasswordPage() {
           </form>
 
           <p className="mt-8 font-body text-xs text-center" style={{ color: "var(--text-muted)" }}>
-            This link was sent to you by iNEXORA admin. If you weren't expecting this, ignore it.
+            This link was sent to you by Merittz admin. If you weren't expecting this, ignore it.
           </p>
         </div>
       </div>

@@ -13,7 +13,7 @@ export default function SuspendedPage() {
           is a mistake, please contact support.
         </p>
         <a
-          href="mailto:support@inexora.lk"
+          href="mailto:support@merittz.com"
           className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
         >
           Contact Support

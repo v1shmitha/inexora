@@ -2,7 +2,6 @@ import { createClient } from "~/lib/supabase/server";
 import Header from "~/app/components/Header";
 import LecturerHeader from "~/app/components/LecturerHeader";
 import DashboardShell from "~/app/components/DashboardShell";
-import Footer from "~/app/components/Footer";
 
 export default async function DashboardLayout({
   children,
@@ -28,7 +27,6 @@ export default async function DashboardLayout({
     return (
       <DashboardShell role={role}>
         <main>{children}</main>
-        <Footer />
       </DashboardShell>
     );
   }
@@ -37,7 +35,6 @@ export default async function DashboardLayout({
     <>
       {role === "LECTURER" ? <LecturerHeader /> : <Header />}
       <main>{children}</main>
-      <Footer />
     </>
   );
 }

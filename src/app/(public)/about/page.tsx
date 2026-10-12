@@ -204,10 +204,10 @@ export default function About() {
             <span className="shimmer-gold">The Next You</span>
           </h1>
           <p className="anim-fade-up-2 font-body text-lg sm:text-xl leading-relaxed max-w-2xl mx-auto mb-5" style={{ color: "var(--text-secondary)" }}>
-            iNEXORA was created with a clear purpose, to help individuals move beyond information and step into meaningful growth.
+            Merittz was created with a clear purpose, to help individuals move beyond information and step into meaningful growth.
           </p>
           <p className="anim-fade-up-3 font-body text-base max-w-xl mx-auto" style={{ color: "var(--text-muted)" }}>
-            In today's world, access to knowledge is no longer the problem. The challenge is finding direction, structure, and a clear path forward. iNEXORA exists to solve that.
+            In today's world, access to knowledge is no longer the problem. The challenge is finding direction, structure, and a clear path forward. Merittz exists to solve that.
           </p>
         </div>
       </section>
@@ -221,14 +221,14 @@ export default function About() {
               <div className="section-rule mb-6" />
               <span className="tag mb-5 inline-block">Our Story</span>
               <h2 className="font-display text-4xl sm:text-5xl font-bold leading-tight mb-8" style={{ color: "var(--text-primary)" }}>
-                Why iNEXORA<br />
+                Why Merittz<br />
                 <span className="shimmer-gold">Exists</span>
               </h2>
               <div className="space-y-5 font-body text-base leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                <p>iNEXORA began with a simple observation: people have access to more information than ever before, yet many still struggle to grow with clarity and purpose.</p>
+                <p>Merittz began with a simple observation: people have access to more information than ever before, yet many still struggle to grow with clarity and purpose.</p>
                 <p>Learning is often scattered. Opportunities feel disconnected. Progress becomes uncertain.</p>
                 <p>We saw the need for something different. A system that connects knowledge, guidance, and real-world outcomes into one unified experience.</p>
-                <p className="font-semibold text-lg" style={{ color: "var(--text-primary)" }}>That idea became iNEXORA.</p>
+                <p className="font-semibold text-lg" style={{ color: "var(--text-primary)" }}>That idea became Merittz.</p>
               </div>
             </div>
 
@@ -240,7 +240,7 @@ export default function About() {
                 <span className="shimmer-gold">Not Be Random</span>
               </h2>
               <p className="font-body text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
-                It should be guided, structured, and meaningful. At iNEXORA, we focus on what actually moves people forward.
+                It should be guided, structured, and meaningful. At Merittz, we focus on what actually moves people forward.
               </p>
               <div className="space-y-0">
                 {[
@@ -274,7 +274,7 @@ export default function About() {
               <span className="shimmer-gold">For Continuous Growth</span>
             </h2>
             <p className="font-body text-lg max-w-2xl mx-auto" style={{ color: "var(--text-secondary)" }}>
-              iNEXORA is not just a platform. It is a structured ecosystem designed to support continuous growth. Every element is designed to work together.
+              Merittz is not just a platform. It is a structured ecosystem designed to support continuous growth. Every element is designed to work together.
             </p>
           </div>
 
@@ -396,7 +396,7 @@ export default function About() {
             to those who <span className="shimmer-gold">evolve.</span>
           </h2>
           <p className="font-body text-lg leading-relaxed max-w-2xl mx-auto mb-4" style={{ color: "var(--text-secondary)" }}>
-            iNEXORA is built to support that evolution step by step, system by system. Whether you are beginning your journey or ready to take the next level, we are here to guide it.
+            Merittz is built to support that evolution step by step, system by system. Whether you are beginning your journey or ready to take the next level, we are here to guide it.
           </p>
           <p className="font-body text-base mb-12" style={{ color: "var(--text-muted)" }}>
             Your next step starts here.

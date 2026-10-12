@@ -1,105 +1,143 @@
 import Link from "next/link";
-import { GraduationCap, Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
+
+const shortcuts = [
+  { label: "Programs", href: "/programs" },
+  { label: "Careers", href: "/careers" },
+  { label: "About Us", href: "/about" },
+  { label: "Contact Us", href: "/contact" },
+];
+
+const resources = [
+  { label: "Digital Library", href: "/maintenance" },
+  { label: "Student Support", href: "/maintenance" },
+  { label: "Partner Portal", href: "/maintenance" },
+  { label: "Research Hub", href: "/maintenance" },
+];
+
+const contact = [
+  { icon: MapPin, label: "Colombo, Sri Lanka" },
+  { icon: Mail, label: "info@merittz.com", href: "mailto:info@merittz.com" },
+  { icon: Phone, label: "+94 11 234 5678", href: "tel:+94112345678" },
+];
+
+const linkClass =
+  "text-sm text-gray-400 transition-colors hover:text-[#22C55E] focus-visible:text-[#22C55E] focus-visible:outline-none focus-visible:underline underline-offset-4";
+
+const pillClass =
+  "inline-flex items-center rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:border-[#22C55E]/50 hover:bg-[#22C55E]/10 hover:text-[#22C55E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22C55E]/60";
+
+const headingClass = "text-sm font-semibold text-white";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+    <footer className="relative overflow-hidden bg-gray-950">
+      {/* Soft glow */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-96 -translate-x-1/2 rounded-full bg-[#22C55E]/10 blur-3xl" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-[#22C55E]/60 to-transparent" />
 
-          {/* Brand */}
-          <div>
-            <div className="mb-4 flex items-center space-x-2">
-              {/* <GraduationCap className="h-8 w-8 text-blue-500" /> */}
-              <img src="/logo3.png" alt="iNEXORA" className="h-10 w-36" />
-              {/* <img src="/favicon.ico" alt="iNEXORA" className="h-8 w-8" />
-              <span className="text-xl font-bold text-white">iNEXORA</span> */}
-            </div>
-            <p className="text-sm leading-relaxed">
-              A next-generation platform designed to help you learn, grow, and evolve with <br />clarity, purpose, and real-world direction.
+      <div className="relative w-full px-6 lg:px-17">
+        {/* Row 1: logo + shortcuts, centered on the same line */}
+        <div className="flex flex-col gap-8 py-10 md:flex-row md:items-center md:justify-between lg:py-12">
+          <Link
+            href="/"
+            aria-label="Merittz home"
+            className="inline-flex shrink-0 items-center gap-3"
+          >
+            <img
+              src="/logo1.png"
+              alt=""
+              className="h-12 w-auto object-contain sm:h-14"
+            />
+            <span
+              className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl ml-1"
+              style={{
+                fontFamily: "'Sora', ui-sans-serif, system-ui, sans-serif",
+              }}
+            >
+              Merittz
+            </span>
+          </Link>
+
+          <nav aria-label="Shortcuts">
+            <ul className="flex flex-wrap items-center gap-3">
+              {shortcuts.map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className={pillClass}>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+
+        <div className="h-px w-full bg-white/10" />
+
+        {/* Row 2: about, resources, contact on one row */}
+        <div className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
+          <div className="sm:col-span-2 lg:col-span-5">
+            <p className="max-w-md text-sm leading-7 text-gray-400">
+              Empowering learners with clarity, purpose, and real-world
+              direction through next-generation education and career
+              development.
             </p>
           </div>
 
-          {/* Quick Links */}
-          <div className="ml-35">
-            <h3 className="mb-4 font-semibold text-[#22C55E]">Quick Links</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="/programs" className="transition hover:text-white">
-                  Programs
-                </Link>
-              </li>
-              <li>
-                <Link href="/careers" className="transition hover:text-white">
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="transition hover:text-white">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="transition hover:text-white">
-                  Contact Us
-                </Link>
-              </li>             
+          <div className="lg:col-span-3 lg:col-start-6">
+            <h3 className={headingClass}>Resources</h3>
+            <ul className="mt-4 space-y-3">
+              {resources.map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className={linkClass}>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Resources */}
-          <div className="ml-25">
-            <h3 className="mb-4 font-semibold text-[#22C55E]">Resources</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="/maintenance" className="transition hover:text-white">
-                  Digital Library
-                </Link>
-              </li>
-              <li>
-                <Link href="/maintenance" className="transition hover:text-white">
-                  Student Support
-                </Link>
-              </li>
-              <li>
-                <Link href="/maintenance" className="transition hover:text-white">
-                  Partner Portal
-                </Link>
-              </li>
-              <li>
-                <Link href="/maintenance" className="transition hover:text-white">
-                  Research Hub
-                </Link>
-              </li>
+          <div className="lg:col-span-4">
+            <h3 className={headingClass}>Get in touch</h3>
+            <ul className="mt-4 space-y-3">
+              {contact.map(({ icon: Icon, label, href }) => (
+                <li key={label} className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/5 text-[#22C55E]">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  {href ? (
+                    <a href={href} className={linkClass}>
+                      {label}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-gray-400">{label}</span>
+                  )}
+                </li>
+              ))}
             </ul>
           </div>
-
-          {/* Contact */}
-          <div className="ml-15">
-            <h3 className="mb-4 font-semibold text-[#22C55E]">Contact</h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start space-x-2">
-                <MapPin className="mt-1 h-4 w-4 flex-shrink-0" />
-                <span>Colombo, Sri Lanka</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <Mail className="mt-1 h-4 w-4 flex-shrink-0" />
-                <span>info@inexora.lk</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <Phone className="mt-1 h-4 w-4 flex-shrink-0" />
-                <span>+94 11 234 5678</span>
-              </li>
-            </ul>
-          </div>
-
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-8 border-t border-gray-800 pt-8 text-center text-sm">
-          <p>
-            &copy; {new Date().getFullYear()} iNexora. All rights reserved.
+        <div className="flex flex-col gap-3 border-t border-white/10 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">
+            © {new Date().getFullYear()} Merittz. All rights reserved.
           </p>
+
+          <div className="flex items-center gap-6 text-xs text-gray-500">
+            <Link
+              href="/privacy"
+              className="transition-colors hover:text-gray-300"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="transition-colors hover:text-gray-300"
+            >
+              Terms of Service
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
