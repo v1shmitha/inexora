@@ -56,7 +56,12 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     user_role::public."Role",
     false,
-    CASE WHEN user_role IN ('STUDENT', 'ADMIN') THEN true ELSE false END,
+    -- isActive means "not suspended by an admin" and must start true for
+    -- every role. Lecturer/employer/institution moderation is gated by
+    -- their own approvalStatus columns, NOT by isActive — starting it
+    -- false makes the middleware treat new signups as suspended and lock
+    -- them out before they can even complete profile setup.
+    true,
     CASE WHEN user_role = 'ADMIN' THEN true ELSE false END,
     NOW(), NOW()
   );
@@ -124,6 +129,68 @@ DO $$ BEGIN
     WITH CHECK (auth.uid()::text = "profileId");
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+
+-- ── StudentQualification ──────────────────────────────────────────────────────
+-- Prior-education entries collected as a repeatable list in profile-setup's
+-- Education step. Profile-setup writes replace the whole list wholesale
+-- (delete-then-insert), so students need SELECT/INSERT/DELETE.
+
+ALTER TABLE "StudentQualification" ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can read own qualifications" ON "StudentQualification"
+    FOR SELECT TO authenticated
+    USING (
+      "studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can insert own qualifications" ON "StudentQualification"
+    FOR INSERT TO authenticated
+    WITH CHECK (
+      "studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can delete own qualifications" ON "StudentQualification"
+    FOR DELETE TO authenticated
+    USING (
+      "studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+
+-- ── StudentPublicProfile ──────────────────────────────────────────────────────
+
+ALTER TABLE "StudentPublicProfile" ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can read own public profile" ON "StudentPublicProfile"
+    FOR SELECT TO authenticated
+    USING ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can insert own public profile" ON "StudentPublicProfile"
+    FOR INSERT TO authenticated
+    WITH CHECK ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can update own public profile" ON "StudentPublicProfile"
+    FOR UPDATE TO authenticated
+    USING ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text))
+    WITH CHECK ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Admins can read all student public profiles" ON "StudentPublicProfile"
+    FOR SELECT TO authenticated
+    USING (EXISTS (SELECT 1 FROM "Profile" p WHERE p.id = auth.uid()::text AND p.is_admin = true));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 
 -- ── Lecturer ──────────────────────────────────────────────────────────────────
@@ -262,6 +329,91 @@ DO $$ BEGIN
     );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+
+-- ── ResearchPaper ─────────────────────────────────────────────────────────────
+
+ALTER TABLE "ResearchPaper" ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can read own research papers" ON "ResearchPaper"
+    FOR SELECT TO authenticated
+    USING ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can insert own research papers" ON "ResearchPaper"
+    FOR INSERT TO authenticated
+    WITH CHECK ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can update own research papers" ON "ResearchPaper"
+    FOR UPDATE TO authenticated
+    USING ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text))
+    WITH CHECK ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Students can delete own research papers" ON "ResearchPaper"
+    FOR DELETE TO authenticated
+    USING ("studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Admins can read all research papers" ON "ResearchPaper"
+    FOR SELECT TO authenticated
+    USING (EXISTS (SELECT 1 FROM "Profile" p WHERE p.id = auth.uid()::text AND p.is_admin = true));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+
+-- ── Public candidate directory (view) ───────────────────────────────────────
+-- Not consumed by any application code today — candidate.ts and the passport
+-- page both query via Prisma (ctx.db), which connects through DATABASE_URL
+-- using a privileged role that bypasses RLS entirely, same as this view
+-- bypasses the underlying tables' RLS via its owner's privileges. This view
+-- exists purely as defense-in-depth against a *hypothetical* future direct
+-- anon/authenticated supabase-js or PostgREST read.
+--
+-- Deliberately NOT implemented as RLS policies on Student/Profile/Credential/
+-- ResearchPaper/StudentPublicProfile: this file already GRANTs ALL ON ALL
+-- TABLES to anon/authenticated (see line ~15), and Postgres RLS only ever
+-- restricts which ROWS are visible, never which COLUMNS — so any policy that
+-- newly permits SELECT on those tables for anon/authenticated would expose
+-- every column of the matching rows (Profile.email/phone/nicNumber/
+-- dateOfBirth/address, Student.emergencyContact, etc.), not just the safe
+-- ones. A view does its own column allowlisting AND row filtering,
+-- independent of the base tables' grants — granting SELECT on the view
+-- grants nothing on the tables underneath it.
+--
+-- Exposes ONLY the fields candidate.ts's search procedure already
+-- allowlists in its own return statement. Row-filtered to isPublic = true,
+-- matching the passport page's existing visibility gate.
+
+CREATE OR REPLACE VIEW "PublicCandidateDirectory" AS
+SELECT
+  s.id AS "studentId",
+  p."fullName",
+  p."avatarUrl",
+  p."isVerified",
+  s."fieldOfStudy",
+  s."institute",
+  s."degreeProgram",
+  s."yearOrGrade",
+  s."expectedGraduationDate",
+  s."gpa",
+  s."employmentTypePreference",
+  s."workModelPreference",
+  s."availability",
+  spp."shareToken",
+  (SELECT COUNT(*) FROM "ResearchPaper" rp WHERE rp."studentId" = s.id AND rp."status" = 'PUBLISHED') AS "papersCount",
+  (SELECT COUNT(*) FROM "Credential" c WHERE c."studentId" = s.id AND c."isValid" = true) AS "credentialsCount"
+FROM "Student" s
+JOIN "Profile" p ON p.id = s."profileId"
+JOIN "StudentPublicProfile" spp ON spp."studentId" = s.id
+WHERE spp."isPublic" = true;
+
+GRANT SELECT ON "PublicCandidateDirectory" TO anon, authenticated;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -926,11 +1078,10 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 ALTER TABLE "JobListing" ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  CREATE POLICY "Anyone can read active job listings" ON "JobListing"
-    FOR SELECT TO authenticated
-    USING ("isActive" = true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DROP POLICY IF EXISTS "Anyone can read active job listings" ON "JobListing";
+CREATE POLICY "Anyone can read active job listings" ON "JobListing"
+  FOR SELECT TO authenticated
+  USING ("isActive" = true AND "status" = 'PUBLISHED');
 
 DO $$ BEGIN
   CREATE POLICY "Employers can manage own job listings" ON "JobListing"
