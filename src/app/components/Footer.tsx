@@ -25,7 +25,7 @@ const linkClass =
   "text-sm text-gray-400 transition-colors hover:text-[#22C55E] focus-visible:text-[#22C55E] focus-visible:outline-none focus-visible:underline underline-offset-4";
 
 const pillClass =
-  "inline-flex items-center rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:border-[#22C55E]/50 hover:bg-[#22C55E]/10 hover:text-[#22C55E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22C55E]/60";
+  "inline-flex items-center rounded-full border border-white/8 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:border-[#22C55E]/50 hover:bg-[#22C55E]/10 hover:text-[#22C55E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22C55E]/60";
 
 const headingClass = "text-sm font-semibold text-white";
 
@@ -50,7 +50,7 @@ export default function Footer() {
               className="h-12 w-auto object-contain sm:h-14"
             />
             <span
-              className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl ml-1"
+              className="ml-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl"
               style={{
                 fontFamily: "'Sora', ui-sans-serif, system-ui, sans-serif",
               }}
@@ -59,7 +59,7 @@ export default function Footer() {
             </span>
           </Link>
 
-          <nav aria-label="Shortcuts">
+          {/* <nav aria-label="Shortcuts">
             <ul className="flex flex-wrap items-center gap-3">
               {shortcuts.map((item) => (
                 <li key={item.label}>
@@ -69,7 +69,7 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </nav>
+          </nav> */}
         </div>
 
         <div className="h-px w-full bg-white/10" />
@@ -84,37 +84,39 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="lg:col-span-3 lg:col-start-6">
-            <h3 className={headingClass}>Resources</h3>
-            <ul className="mt-4 space-y-3">
-              {resources.map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className={linkClass}>
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="grid grid-cols-2 lg:col-span-7 lg:col-start-6 lg:grid-cols-7 lg:gap-8">
+            <div className="lg:col-span-3">
+              <h3 className={headingClass}>Resources</h3>
+              <ul className="mt-4 space-y-3">
+                {resources.map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className={linkClass}>
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div className="lg:col-span-4">
-            <h3 className={headingClass}>Get in touch</h3>
-            <ul className="mt-4 space-y-3">
-              {contact.map(({ icon: Icon, label, href }) => (
-                <li key={label} className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/5 text-[#22C55E]">
-                    <Icon className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  {href ? (
-                    <a href={href} className={linkClass}>
-                      {label}
-                    </a>
-                  ) : (
-                    <span className="text-sm text-gray-400">{label}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="lg:col-span-4">
+              <h3 className={headingClass}>Get in touch</h3>
+              <ul className="mt-4 space-y-3">
+                {contact.map(({ icon: Icon, label, href }) => (
+                  <li key={label} className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/5 text-[#22C55E]">
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    {href ? (
+                      <a href={href} className={linkClass}>
+                        {label}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-gray-400">{label}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 

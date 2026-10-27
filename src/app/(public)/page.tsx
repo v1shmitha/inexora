@@ -124,7 +124,7 @@ function Word({
       aria-label={text}
       style={level === 2 ? { fontSize: SECTION_FONT_SIZE } : undefined}
       className={`font-display block overflow-hidden pb-[0.20em] leading-[1.05] font-extrabold tracking-[-0.02em] ${
-        level === 2 ? "lg:ml-1.7 ml-6" : ""
+        level === 2 ? "lg:ml-1.7 ml-2" : ""
       } ${className}`}
     >
       <span
