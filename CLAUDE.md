@@ -132,14 +132,21 @@ Otherwise, run to completion.
 - Additive migrations by default. Any destructive migration (dropped
   column/table, non-nullable without a default, etc.) must be flagged
   explicitly in the Architecture Plan and approved before running.
-- `prisma migrate dev` locally only; `prisma migrate deploy` is an
+- `DATABASE_URL` points at the hosted Supabase database, not a local
+  one. `prisma migrate dev` / `npm run db:generate` are `ask`-gated:
+  explain the migration before running it, and if Prisma reports
+  drift, a checksum mismatch, or offers a reset, answer no and stop.
+  Never accept a reset, and never use `db push` as a workaround.
+- Never edit a migration that already exists in `prisma/migrations/`;
+  add a new one.
+- `prisma migrate deploy` is an
   `ask`-gated command (see `.claude/settings.json`) and should only run
   in the workflow this repo actually uses for deploys.
 
 ## Definition of Done
 
 - Acceptance criteria satisfied
-- Tests, lint, and typecheck passing
+- `npm run check` passing (lint + typecheck; no test runner exists yet)
 - QA review passed
 - Manual UI test confirmed by user, if applicable
 - Branch pushed, PR opened
