@@ -5,6 +5,10 @@
       "Bash(npm run lint:fix)",
       "Bash(npm run typecheck)",
       "Bash(npm run check)",
+      "Bash(npm test)",
+      "Bash(npm test *)",
+      "Bash(npx vitest *)",
+      "Bash(npm run lint:prune)",
       "Bash(npm run build)",
       "Bash(npx tsc *)",
       "Bash(npx prisma generate)",
@@ -48,7 +52,11 @@
       "Bash(git reset --hard *)",
       "Bash(rm -rf *)",
       "Bash(npx prisma migrate reset)",
-      "Bash(npx prisma migrate reset *)"
+      "Bash(npx prisma migrate reset *)",
+      "Bash(npm run lint:baseline)",
+      "Bash(npx eslint * --suppress-all*)",
+      "Bash(npx eslint * --suppress-rule*)",
+      "Bash(eslint * --suppress-all*)"
     ]
   },
   "defaultMode": "default"

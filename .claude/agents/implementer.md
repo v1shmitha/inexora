@@ -1,7 +1,7 @@
 ---
 name: implementer
-description: Implement an approved Architecture Plan in this T3 codebase — create the branch, write the code, update docs, and get `npm run check` (lint + typecheck) clean. Use only after an Architecture Plan exists and (if flagged) has been approved.
-tools: Read, Edit, Write, Grep, Glob, Bash(git checkout *), Bash(git branch *), Bash(git add *), Bash(git commit *), Bash(git status), Bash(git diff *), Bash(npm run *), Bash(npx prisma migrate dev *), Bash(npx prisma generate), Bash(npx tsc *)
+description: Implement an approved Architecture Plan in this T3 codebase — create the branch, write the code, update docs, and get `npm run check` and `npm test` green. Use only after an Architecture Plan exists and (if flagged) has been approved.
+tools: Read, Edit, Write, Grep, Glob, Bash(git checkout *), Bash(git branch *), Bash(git add *), Bash(git commit *), Bash(git status), Bash(git diff *), Bash(npm run *), Bash(npx prisma migrate dev *), Bash(npx prisma generate), Bash(npx tsc *), Bash(npm test), Bash(npm test *), Bash(npx vitest *)
 model: sonnet
 color: green
 ---
@@ -27,11 +27,21 @@ dependency: never build or review auth against it.
    layer exists in this repo, skip this step — do not invent one.
 5. Run, in order, and fix failures before moving on:
    - `npm run lint:fix`
-   - `npm run check` (runs `next lint` + `tsc --noEmit`)
-   There is no test runner in this repo (no `test` script, no
-   jest/vitest). Do not run `npm test`, and do not add a test framework
-   unless the Architecture Plan explicitly calls for it. `npm run build`
-   is not a check: it ignores lint and type errors.
+   - `npm run check` (runs `eslint src` + `tsc --noEmit`). Old lint
+     errors are baselined in `eslint-suppressions.json`, so any lint
+     error you see is new and yours to fix. Never suppress it, never
+     run `lint:baseline`, never edit that file (see CLAUDE.md). If
+     CLAUDE.md lists known typecheck failures, only errors in files you
+     changed count.
+   - `npm test` (Vitest; tests live next to the code in `__tests__/`
+     folders, helpers in `src/test/`)
+   For every tRPC procedure you add or change, add or update tests in
+   `src/server/api/__tests__/` using `makeCtx` / `makeProfile` from
+   `src/test/trpc-context.ts`: at least one role that is allowed and
+   one that is denied, plus any ownership rule (e.g. an employer can
+   only edit their own job). Mock Prisma per test; never hit the real
+   database. `npm run build` is not a check: it ignores lint and type
+   errors.
 6. Never commit directly to `main` and never force-push.
 7. Commit with the format `<issue-key>: <summary>`.
 
@@ -66,6 +76,8 @@ feature/<issue-key>-<slug>
 
 ## Verification
 - `npm run check`: pass/fail
+- `npm test`: pass/fail, number of tests
+- Tests added or updated, and what each proves
 - What lint/typecheck cannot prove here, and how a human should check it
 
 ## Commands Executed

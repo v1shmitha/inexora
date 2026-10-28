@@ -18,9 +18,10 @@ Build production-ready software with maintainable architecture, strong
 test coverage, security, and minimal technical debt. Optimize for
 long-term maintainability over short-term speed.
 
-Note: this repo currently has no test runner configured (no jest/vitest,
-no `test` script) — "strong test coverage" is an aspiration, not a
-current state. Don't assume test infrastructure exists.
+Tests use Vitest (`npm test`). Coverage is new and still thin: the
+role guards in `src/server/api/trpc.ts` are tested; most routers are
+not yet. Every new or changed tRPC procedure gets permission tests
+(see "Testing" below).
 
 ## Core Principles
 
@@ -70,14 +71,22 @@ workflow pulls the epic's child issues and treats them as the scope.
 Everything after the key is free-form additional context: hints, scope
 limits, known gotchas, or pointers to related code.
 
-**The command triages before doing anything else.** Trivial, single-file,
-no-design-decision changes take a lightweight path in the main session —
-no subagents spun up. Anything with real scope, ambiguity, or schema/API
-changes runs the full researcher → architect → implementer → qa-reviewer
-→ pr-manager pipeline (defined in `.claude/agents/`). This exists purely
-to avoid paying for five agent handoffs on a one-line fix — see
-`.claude/commands/handle-ticket.md` for the exact criteria and the
-lightweight path's steps.
+**The command sizes the ticket before doing anything else** and routes
+it automatically:
+
+- **TINY** (one file, no design decision): direct edit in the main
+  session, no subagents.
+- **STANDARD** (most feature work): main session researches, plans,
+  and implements, then one `qa-reviewer` agent reviews independently.
+- **FULL** (epics, auth/RLS, destructive or multi-model schema changes,
+  cross-portal features, unclear tickets): the full researcher →
+  architect → implementer → qa-reviewer → pr-manager pipeline.
+
+When unsure it picks the larger size, and it moves up a size mid-run if
+the work turns out bigger. Force a size with `--tiny`, `--standard`, or
+`--full` in the command, or a Jira label `claude-tiny`,
+`claude-standard`, or `claude-full`. Exact criteria are in
+`.claude/commands/handle-ticket.md`.
 
 The QA ↔ implementer fix loop is capped at 2 rounds. If it's still
 failing after that, the workflow stops and asks you rather than looping
@@ -146,7 +155,7 @@ Otherwise, run to completion.
 ## Definition of Done
 
 - Acceptance criteria satisfied
-- `npm run check` passing (lint + typecheck; no test runner exists yet)
+- `npm run check` and `npm test` passing
 - QA review passed
 - Manual UI test confirmed by user, if applicable
 - Branch pushed, PR opened
@@ -186,9 +195,13 @@ npm run build             # production build
 npm run start              # run a production build
 npm run preview            # build + start
 
-npm run check              # next lint + tsc --noEmit (run this before considering work done)
-npm run lint                # next lint only
+npm run check              # eslint src + tsc --noEmit (run this before considering work done)
+npm test                   # Vitest, run once
+npm run test:watch         # Vitest in watch mode
+npm run lint                # eslint src (fails only on errors not in the baseline)
 npm run lint:fix
+npm run lint:prune          # drop baseline entries for errors that have been fixed
+npm run lint:baseline       # HUMAN ONLY: re-record all current errors as the baseline
 npm run typecheck           # tsc --noEmit only
 npm run format:check        # prettier --check
 npm run format:write        # prettier --write
@@ -199,7 +212,47 @@ npm run db:push             # prisma db push (schema sync without a migration fi
 npm run db:studio           # prisma studio
 ```
 
-There is no test runner configured in this repo (no jest/vitest, no `test` script) — don't assume one exists.
+## Testing
+
+- Vitest, Node environment, config in `vitest.config.ts`. Test files are
+  `src/**/*.test.ts`, kept in `__tests__/` folders next to the code.
+- tRPC procedures are tested by calling them through
+  `createCallerFactory` with a fake context from
+  `src/test/trpc-context.ts` (`makeCtx`, `makeProfile`, `makeLecturer`,
+  `makeEmployer`, `makeManagerEntry`). See
+  `src/server/api/__tests__/procedures.test.ts` for the pattern.
+- Mock `~/server/db` and `~/lib/supabase/server` with `vi.mock` at the
+  top of each router test, and pass only the Prisma methods a procedure
+  uses via `makeCtx({ db })`. Tests never touch the real Supabase
+  database.
+- Minimum for every new or changed procedure: one allowed role, one
+  denied role, and any ownership rule.
+
+### Lint baseline (pre-existing errors)
+
+The codebase has hundreds of old lint errors. They are recorded in
+`eslint-suppressions.json` (ESLint bulk suppressions), so `npm run lint`
+fails only on **new** errors.
+
+- Never run `npm run lint:baseline` or `eslint --suppress-all` /
+  `--suppress-rule`, and never edit `eslint-suppressions.json` by hand
+  to make an error go away. Fix new errors in code.
+- Don't fix unrelated old errors as part of a ticket (keeps diffs
+  small). If you do fix old errors in a file you're already changing,
+  run `npm run lint:prune` so the baseline shrinks.
+- `eslint-suppressions.json` may only ever shrink in a PR, never grow.
+
+### Known typecheck failures (temporary)
+
+`tsc --noEmit` currently reports 18 pre-existing errors in 5 files:
+`src/app/(public)/courses/[id]/page.tsx`, `src/app/(public)/page.tsx`,
+`src/app/(public)/resources/page.tsx`,
+`src/app/dashboard/lecturer/modules/page.tsx`,
+`src/app/profile-setup/_components/StudentProfileSetup.tsx`.
+They are being fixed in their own ticket. Until this section is
+removed, treat typecheck as passing when none of its errors are in
+files you changed, and say so in your report. Don't fix them as a
+side effect of another ticket. Delete this section once `tsc` is clean.
 
 `next.config.js` sets `eslint.ignoreDuringBuilds: true` and `typescript.ignoreBuildErrors: true`, so `npm run build` will succeed even with type or lint errors. Always run `npm run check` separately to actually catch them.
 

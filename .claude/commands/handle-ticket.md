@@ -1,6 +1,6 @@
 ---
-description: Triage a Jira issue or epic, then run the research -> plan -> implement -> QA -> PR workflow — full pipeline for real work, a lightweight path for trivial changes
-argument-hint: <JIRA-KEY> [free-form context: hints, scope limits, gotchas...]
+description: Triage a Jira issue or epic, then route it automatically: TINY (direct edit), STANDARD (single session + QA agent), or FULL (five-agent pipeline)
+argument-hint: <JIRA-KEY> [--tiny|--standard|--full] [free-form context]
 ---
 
 Execute the ticket workflow for: $ARGUMENTS
@@ -12,47 +12,111 @@ or constraints. It supplements the Jira item; it never silently
 overrides its requirements. If it conflicts with the Jira item, stop and
 ask before proceeding (per CLAUDE.md's Additional Context rules).
 
-## Step 0: Triage (main session, no subagent)
+## Step 0: Size the ticket (main session, no subagent)
 
-Before spinning up any agent, fetch just the Jira key's title, type, and
-description yourself via the Atlassian MCP tools, and skim for an
-obvious file reference if one's given. Classify:
+Before spinning up any agent, fetch the Jira item yourself via the
+Atlassian MCP tools: title, issue type, description, acceptance
+criteria, labels, story points (if the field exists), and whether it
+has child issues. Skim for any file references.
 
-- **Trivial**: single file, no schema/API/auth changes, no ambiguity —
-  things like a copy change, a config value, an obvious one-line bug fix,
-  a clear log/typo fix, bumping a constant. No design decision needed.
-- **Real work**: anything else — new or changed tRPC procedures, Prisma
-  schema changes, multi-file changes, new UI, unclear scope, or you're
-  not confident it's trivial after a quick look.
+### Manual override (always wins)
 
-**When uncertain, default to Real work.** A wrongly-escalated trivial
-ticket costs one extra plan you can skim past; a wrongly-trivialized
-real ticket risks a bad diff shipped without review — that's the more
-expensive mistake on a Pro seat since fixing it later costs a whole
-extra cycle.
+If the arguments contain `--tiny`, `--standard`, or `--full`, or the
+Jira issue has a label `claude-tiny`, `claude-standard`, or
+`claude-full`, use that size and skip the scoring below. If the flag
+and the label disagree, the flag in the command wins. Strip the flag
+from the user context before passing it on.
 
-- If **Trivial**: skip straight to the **Lightweight Path** below.
-- If **Real work**: run the **Full Pipeline** below.
+### Automatic sizing
 
-State which path you're taking and why, in one line, before proceeding.
+Pick the **first** size whose conditions match:
 
-## Lightweight Path (trivial changes)
+**FULL** if ANY of these is true:
+- It is an epic, or has child issues
+- It touches auth, login, roles/permissions, RLS policies, or
+  `supabase/setup.sql`
+- It changes `prisma/schema.prisma` in a destructive way, or adds or
+  changes more than one model
+- It affects more than one role portal (student, lecturer,
+  institution, employer, admin), or adds a new portal-level feature
+- Story points are 5 or more
+- The acceptance criteria are missing or unclear enough that real
+  research is needed to even know what to build
+- You expect roughly 8 or more files to change
+
+**TINY** if ALL of these are true:
+- One file, or two trivially related files (e.g. a component and its
+  style)
+- No change to the Prisma schema, tRPC procedure signatures, auth, or
+  env vars
+- No new component, page, or route
+- The acceptance criteria leave no design decision open
+- Story points are 1 or less, if set
+- Typical examples: copy/text change, a style or spacing fix, a config
+  value, an obvious one-line bug fix, a typo
+
+**STANDARD** otherwise. This is most feature work: a new procedure
+plus its UI, an additive single-model schema change, a bug spanning a
+few files.
+
+**When torn between two sizes, pick the larger one.** Undersizing is
+the expensive mistake.
+
+State the result in one line before doing anything else, in this
+form:
+
+> Size: STANDARD (new tRPC procedure + one UI component, additive
+> schema change). Override with `--tiny` or `--full`.
+
+### Escalating mid-run
+
+If, once you are in the code, the work turns out bigger than its size
+(TINY touches more files or needs a design choice; STANDARD hits auth,
+RLS, a destructive migration, or grows past roughly 8 files), stop,
+say so in one line, and move up one size, keeping any work already
+done that is still valid. Never move down a size on your own.
+
+## TINY path
 
 No subagents. In the main session:
 
-1. Make the change directly, following existing patterns in the touched
-   file(s).
-2. Run `npm run check` (lint + typecheck). There is no test runner
-   in this repo, so don't run `npm test`.
-3. If all green, create the feature branch, commit, push, open the PR,
-   and post the Jira comment yourself — same branch/commit/PR
-   conventions as the full pipeline (see CLAUDE.md).
-4. If anything doesn't come back clean, or the change turns out to
-   touch more than you expected once you're in the file: stop and
-   escalate to the Full Pipeline instead of pushing through — don't
-   burn cycles patching a lightweight fix into something it isn't.
+1. Create the branch `feature/<issue-key>-<slug>` from an up-to-date
+   `main`.
+2. Make the change directly, following existing patterns in the
+   touched file(s).
+3. Run `npm run check` (lint + typecheck) and `npm test`.
+4. If it touches UI, give the user a short manual check (2 to 4 items)
+   and wait for "passed" before pushing.
+5. Commit, push, open the PR, and post the Jira comment yourself, using
+   the same conventions as the full pipeline (see CLAUDE.md).
 
-## Full Pipeline (real work)
+## STANDARD path
+
+Main session only, plus **one** `qa-reviewer` agent for an independent
+review. No researcher, architect, implementer, or pr-manager agents.
+
+1. **Research briefly** in the main session: only the files the change
+   touches and the patterns it must follow.
+2. **Write a short plan** and show it: files to change, approach, how
+   each acceptance criterion will be met, and any open question.
+   - **Stop for approval** if the plan includes a Prisma migration, a
+     change to a tRPC procedure signature used elsewhere, an open
+     question, or anything that deviates from the ticket.
+   - Otherwise continue straight away; the user can still interrupt.
+3. **Implement** on `feature/<issue-key>-<slug>`, following the
+   implementer agent's rules in `.claude/agents/implementer.md`
+   (migration rules, no edits to existing migrations, minimal diff,
+   `npm run lint:fix`, `npm run check`, `npm test`, and permission
+   tests for any new or changed tRPC procedure).
+4. **QA**: launch the `qa-reviewer` agent with the ticket's acceptance
+   criteria, the plan, and the diff. Fix what it finds yourself, then
+   re-run it; at most 2 rounds, then stop and report as in the full
+   pipeline.
+5. **UI gate**: same as step 5 of the full pipeline.
+6. **PR**: push, open the PR, and post the Jira comment yourself, using
+   the PR and Jira formats in `.claude/agents/pr-manager.md`.
+
+## FULL path (full pipeline)
 
 1. **Researcher agent**
    - Fetch the Jira key. If it's an epic, also fetch its child issues.
@@ -72,7 +136,7 @@ No subagents. In the main session:
    - Create the feature branch.
    - Implement per the approved plan.
    - Update API docs if applicable.
-   - Run `npm run check` (lint + typecheck; there is no test runner).
+   - Run `npm run check` and `npm test`.
 
 4. **QA reviewer agent** (max 2 fix-and-recheck rounds)
    - Review the implementation against the plan and acceptance criteria.

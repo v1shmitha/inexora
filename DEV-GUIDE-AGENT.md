@@ -66,19 +66,24 @@ up front.
 
 ## What happens after you run it
 
-1. **Triage** — Claude looks at the ticket and decides if it's a trivial
-   one-file change or real work. You'll see a one-line note on which
-   path it's taking.
-2. **Trivial tickets** skip straight to a quick fix + test run + PR, no
-   agent handoffs.
-3. **Real work** runs the full pipeline: a Research Report, then an
-   Architecture Plan (which stops for your approval if it involves
+1. **Sizing**: Claude reads the ticket and picks a size. You'll see one
+   line like `Size: STANDARD (new procedure + one component). Override
+   with --tiny or --full.`
+2. **TINY** (copy, style, config, one-line fix): a direct edit,
+   `npm run check` and `npm test`, then the PR. No agents.
+3. **STANDARD** (most features): Claude plans in the main session
+   (stopping for your approval only if there's a migration, a shared
+   API change, or an open question), builds it, then one QA agent
+   reviews it independently.
+4. **FULL** (epics, auth/RLS, big schema changes, cross-portal work,
+   unclear tickets): the five-agent pipeline. A Research Report, then
+   an Architecture Plan (which stops for your approval if it involves
    anything security-sensitive, a destructive migration, infra changes,
    or a major architecture change), then implementation, then QA.
-4. **If your change touches UI**, Claude stops before opening the PR and
+5. **If your change touches UI**, Claude stops before opening the PR and
    hands you a manual test checklist. You need to actually test it and
    tell Claude the results (pass, or what failed) before it continues.
-5. Once QA and (if applicable) your manual testing pass, Claude opens
+6. Once QA and (if applicable) your manual testing pass, Claude opens
    the branch/PR and posts a status comment back on the Jira ticket.
 
 ## When Claude will stop and ask you something
@@ -103,6 +108,7 @@ it doesn't restart from scratch.
   command rather than letting Claude work from a stale description.
 - For epics, either keep sub-issues current or be explicit in the
   command about which parts you actually want done in this pass.
-- If triage picks the wrong path (trivial vs. real work) for a specific
-  ticket, just tell Claude directly — "this needs the full pipeline" or
-  "this is small, skip the agents" — and it'll adjust.
+- If the size is wrong, force it: `/handle-ticket INX-123 --full`, or
+  add a Jira label `claude-tiny`, `claude-standard`, or `claude-full`
+  to the ticket. The command flag wins over the label. Claude may move
+  a ticket up a size by itself mid-run, but never down.
