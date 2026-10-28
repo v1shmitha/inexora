@@ -42,8 +42,8 @@ No subagents. In the main session:
 
 1. Make the change directly, following existing patterns in the touched
    file(s).
-2. Run `npm run lint`, `npm run typecheck`, and the relevant test
-   command.
+2. Run `npm run check` (lint + typecheck). There is no test runner
+   in this repo, so don't run `npm test`.
 3. If all green, create the feature branch, commit, push, open the PR,
    and post the Jira comment yourself — same branch/commit/PR
    conventions as the full pipeline (see CLAUDE.md).
@@ -72,7 +72,7 @@ No subagents. In the main session:
    - Create the feature branch.
    - Implement per the approved plan.
    - Update API docs if applicable.
-   - Run tests, lint, typecheck.
+   - Run `npm run check` (lint + typecheck; there is no test runner).
 
 4. **QA reviewer agent** (max 2 fix-and-recheck rounds)
    - Review the implementation against the plan and acceptance criteria.
