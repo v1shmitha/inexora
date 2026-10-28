@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  lecturerProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 
 const RESOURCE_TYPES = [
   "EBOOK",
@@ -14,6 +18,42 @@ const RESOURCE_TYPES = [
 const ACCESS_LEVELS = ["PUBLIC", "ENROLLED", "PREMIUM"] as const;
 
 export const libraryResourceRouter = createTRPCRouter({
+
+  // ── GET: public library browse list ────────────────────────────────────────
+  listPublic: publicProcedure
+    .input(z.object({
+      search: z.string().optional(),
+      type: z.enum(RESOURCE_TYPES).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.libraryResource.findMany({
+        where: {
+          ...(input.type && { type: input.type }),
+          ...(input.search && {
+            OR: [
+              { title: { contains: input.search, mode: "insensitive" } },
+              { author: { contains: input.search, mode: "insensitive" } },
+              { description: { contains: input.search, mode: "insensitive" } },
+            ],
+          }),
+        },
+        // No fileUrl/uploadedBy here: this is an anonymous, unauthenticated
+        // browse list (both free and premium resources are meant to show up
+        // here, gated behind login on access, not behind visibility).
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          author: true,
+          yearPublished: true,
+          description: true,
+          isFree: true,
+          views: true,
+          downloads: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }),
 
   // ── GET: all resources uploaded by this lecturer ──────────────────────────
   getMyResources: lecturerProcedure.query(async ({ ctx }) => {

@@ -60,9 +60,9 @@ function stemOf(ch: string) {
     let best = { left: 0, width: Infinity };
     for (let y = Math.floor(base - cap + 4); y < base - 2; y += 3) {
       let x = 0;
-      while (x < c.width && data[(y * c.width + x) * 4 + 3] < 128) x++;
+      while (x < c.width && (data[(y * c.width + x) * 4 + 3] ?? 0) < 128) x++;
       const x0 = x;
-      while (x < c.width && data[(y * c.width + x) * 4 + 3] >= 128) x++;
+      while (x < c.width && (data[(y * c.width + x) * 4 + 3] ?? 0) >= 128) x++;
       const w = x - x0;
       if (w > 0 && w < best.width) best = { left: x0, width: w };
     }
@@ -81,6 +81,7 @@ function useInView<T extends HTMLElement>() {
     if (!el) return;
     const io = new IntersectionObserver(
       ([entry]) => {
+        if (!entry) return;
         if (entry.isIntersecting) {
           setInView(true);
           io.disconnect();
@@ -257,7 +258,7 @@ export default function Home() {
     return () => {
       window.removeEventListener("scroll", apply);
       keys.forEach((k, i) => {
-        header.style[k] = saved[i];
+        header.style[k] = saved[i] ?? "";
       });
     };
   }, []);

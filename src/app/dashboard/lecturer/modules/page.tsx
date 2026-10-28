@@ -161,7 +161,6 @@ export default function ModulesPage() {
         code: form.code || null,
         description: form.description || null,
         isMandatory: form.isMandatory,
-        orderIndex: form.orderIndex ? parseInt(form.orderIndex) : 0,
       });
     }
   };
@@ -321,114 +320,105 @@ export default function ModulesPage() {
                   </div>
 
                   {/* Module cards grid */}
-                  {/* Module cards grid */}
-<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-  {mods.map((mod, idx) => {
-    console.log('Module key:', mod.courseLecturerId, 'Course ID:', mod.course.id);
-    // Ensure we have a unique key by combining multiple identifiers
-    const uniqueKey = mod.courseLecturerId || 
-                      mod.course.id || 
-                      `module-${idx}-${mod.course.title}`;
-    
-    return (
-      <div
-        key={uniqueKey}
-        className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md"
-      >
-        {/* Card header */}
-        <div className="flex items-start gap-3 p-5 pb-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-sm">
-            <Layers className="h-5 w-5 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="leading-snug font-semibold text-slate-900">
-              {mod.course.title}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              {mod.course.code && (
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
-                  {mod.course.code}
-                </span>
-              )}
-              {mod.course.isMandatory && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  Mandatory
-                </span>
-              )}
-              {mod.course.orderIndex > 0 && (
-                <span className="text-xs text-slate-400">
-                  #{mod.course.orderIndex}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {mods.map((mod) => (
+                      <div
+                        key={mod.id}
+                        className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md"
+                      >
+                        {/* Card header */}
+                        <div className="flex items-start gap-3 p-5 pb-3">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-sm">
+                            <Layers className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="leading-snug font-semibold text-slate-900">
+                              {mod.course.title}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              {mod.course.code && (
+                                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+                                  {mod.course.code}
+                                </span>
+                              )}
+                              {mod.course.isMandatory && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                  Mandatory
+                                </span>
+                              )}
+                              {mod.course.orderIndex > 0 && (
+                                <span className="text-xs text-slate-400">
+                                  #{mod.course.orderIndex}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-        {/* Description */}
-        {mod.course.description && (
-          <p className="line-clamp-2 px-5 pb-3 text-xs leading-relaxed text-slate-500">
-            {mod.course.description}
-          </p>
-        )}
+                        {/* Description */}
+                        {mod.course.description && (
+                          <p className="line-clamp-2 px-5 pb-3 text-xs leading-relaxed text-slate-500">
+                            {mod.course.description}
+                          </p>
+                        )}
 
-        {/* Stats */}
-        <div className="mx-5 mb-4 flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-xs">
-            <Users className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="font-bold text-slate-800">
-              {mod.course.courseEnrollments.length}
-            </span>
-            <span className="text-slate-400">students</span>
-          </span>
-          <span className="h-3 w-px bg-slate-200" />
-          <span className="flex items-center gap-1.5 text-xs">
-            <ClipboardList className="h-3.5 w-3.5 text-violet-500" />
-            <span className="font-bold text-slate-800">
-              {mod.course.assessments.length}
-            </span>
-            <span className="text-slate-400">assessments</span>
-          </span>
-        </div>
+                        {/* Stats */}
+                        <div className="mx-5 mb-4 flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <Users className="h-3.5 w-3.5 text-emerald-500" />
+                            <span className="font-bold text-slate-800">
+                              {mod.course.courseEnrollments.length}
+                            </span>
+                            <span className="text-slate-400">students</span>
+                          </span>
+                          <span className="h-3 w-px bg-slate-200" />
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <ClipboardList className="h-3.5 w-3.5 text-violet-500" />
+                            <span className="font-bold text-slate-800">
+                              {mod.course.assessments.length}
+                            </span>
+                            <span className="text-slate-400">assessments</span>
+                          </span>
+                        </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1.5 border-t border-slate-100 p-3">
-          <button
-            onClick={() =>
-              router.push(
-                `/dashboard/lecturer/modules/${mod.course.id}`,
-              )
-            }
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
-          >
-            Open <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => openEdit(mod)}
-            title="Edit"
-            className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => {
-              if (confirm("Delete this module?"))
-                deleteModule.mutate({ id: mod.course.id });
-            }}
-            disabled={deleteModule.isPending}
-            title="Delete"
-            className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-          >
-            {deleteModule.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  })}
-</div>
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5 border-t border-slate-100 p-3">
+                          <button
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/lecturer/modules/${mod.course.id}`,
+                              )
+                            }
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+                          >
+                            Open <ArrowRight className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => openEdit(mod)}
+                            title="Edit"
+                            className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm("Delete this module?"))
+                                deleteModule.mutate({ id: mod.course.id });
+                            }}
+                            disabled={deleteModule.isPending}
+                            title="Delete"
+                            className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          >
+                            {deleteModule.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })}

@@ -242,18 +242,6 @@ fails only on **new** errors.
   run `npm run lint:prune` so the baseline shrinks.
 - `eslint-suppressions.json` may only ever shrink in a PR, never grow.
 
-### Known typecheck failures (temporary)
-
-`tsc --noEmit` currently reports 18 pre-existing errors in 5 files:
-`src/app/(public)/courses/[id]/page.tsx`, `src/app/(public)/page.tsx`,
-`src/app/(public)/resources/page.tsx`,
-`src/app/dashboard/lecturer/modules/page.tsx`,
-`src/app/profile-setup/_components/StudentProfileSetup.tsx`.
-They are being fixed in their own ticket. Until this section is
-removed, treat typecheck as passing when none of its errors are in
-files you changed, and say so in your report. Don't fix them as a
-side effect of another ticket. Delete this section once `tsc` is clean.
-
 `next.config.js` sets `eslint.ignoreDuringBuilds: true` and `typescript.ignoreBuildErrors: true`, so `npm run build` will succeed even with type or lint errors. Always run `npm run check` separately to actually catch them.
 
 After changing `prisma/schema.prisma`, run `npm run db:generate`, then manually re-run `supabase/setup.sql` in the Supabase SQL editor (see below — this is not automatic).
