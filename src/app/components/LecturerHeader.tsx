@@ -91,7 +91,7 @@ export default function LecturerHeader() {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center">
-              <img src="/logo.png" alt="Merittz" className="h-10 w-36" />
+              <img src="/logo.png" alt="Merittz" className="h-10 w-auto" />
             </Link>
 
             {/* Desktop Nav */}

@@ -91,13 +91,13 @@ export default function PrivacyPolicy() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Section title="Overview">
           <p>
-            iNEXORA connects students, lecturers, institutions, and employers on one platform.
+            Merittz connects students, lecturers, institutions, and employers on one platform.
             This policy explains what information we collect, why we collect it, how it&apos;s
             used, and the choices you have. We aim for this document to describe exactly what
             the platform does today — not aspirational promises.
           </p>
           <p>
-            iNEXORA is designed with data protection principles consistent with the GDPR
+            Merittz is designed with data protection principles consistent with the GDPR
             (EU), CCPA (California), PDPA (Singapore/SE Asia), and FERPA (US education
             records) in mind: we collect the minimum data needed to run the service,
             classify it by sensitivity, and gate anything beyond the essentials behind
@@ -185,7 +185,7 @@ export default function PrivacyPolicy() {
         <Section title="Data retention">
           <p>
             We retain account data for as long as your account is active. If you stop using
-            iNEXORA, your data remains associated with your account until you request
+            Merittz, your data remains associated with your account until you request
             deletion. We do not currently run automated retention or deletion schedules —
             all deletion requests are handled manually by our team (see &quot;Your rights&quot;
             below). Automating this is on our roadmap.

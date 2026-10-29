@@ -57,7 +57,7 @@ export default function TermsOfService() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Section title="1. Acceptance of terms">
           <p>
-            By creating an account or otherwise using iNEXORA, you agree to these Terms and
+            By creating an account or otherwise using Merittz, you agree to these Terms and
             to our <a href="/privacy" className="font-semibold" style={{ color: "var(--gold)" }}>Privacy Policy</a>.
             If you do not agree, please do not use the platform.
           </p>
@@ -65,7 +65,7 @@ export default function TermsOfService() {
 
         <Section title="2. Eligibility">
           <p>
-            You must be at least 13 years old to create an iNEXORA account. If you are
+            You must be at least 13 years old to create a Merittz account. If you are
             under the age of majority in your country, you confirm you have the necessary
             permission from a parent or guardian to use the platform.
           </p>
@@ -73,7 +73,7 @@ export default function TermsOfService() {
 
         <Section title="3. Accounts and roles">
           <p>
-            iNEXORA supports four account types — Student, Lecturer, Employer, and
+            Merittz supports four account types — Student, Lecturer, Employer, and
             Institution — each with different capabilities. Lecturer, Employer, and
             Institution accounts go through a manual approval step before they can post
             content, list jobs, or manage programs. You&apos;re responsible for keeping
@@ -94,7 +94,7 @@ export default function TermsOfService() {
         <Section title="5. Content">
           <p>
             Lecturers and institutions retain ownership of the course content they publish
-            on iNEXORA, and grant iNEXORA a license to host and display it to enrolled
+            on Merittz, and grant Merittz a license to host and display it to enrolled
             users. Employers retain ownership of job listings they post. You&apos;re
             responsible for having the rights to anything you upload.
           </p>
@@ -112,7 +112,7 @@ export default function TermsOfService() {
 
         <Section title="7. Disclaimers">
           <p>
-            iNEXORA is provided &quot;as is.&quot; We do not guarantee that any program,
+            Merittz is provided &quot;as is.&quot; We do not guarantee that any program,
             course, or job listed on the platform will meet your expectations or lead to a
             specific outcome (admission, employment, certification, etc.). Program and
             listing accuracy is the responsibility of the institution, lecturer, or
@@ -124,7 +124,7 @@ export default function TermsOfService() {
           <p>
             We may update these Terms as the platform evolves. Material changes will be
             reflected by updating the &quot;Last updated&quot; date above. Continued use of
-            iNEXORA after changes take effect means you accept the revised Terms.
+            Merittz after changes take effect means you accept the revised Terms.
           </p>
         </Section>
 
