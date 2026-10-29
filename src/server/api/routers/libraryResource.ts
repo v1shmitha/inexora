@@ -17,6 +17,12 @@ const RESOURCE_TYPES = [
 
 const ACCESS_LEVELS = ["PUBLIC", "ENROLLED", "PREMIUM"] as const;
 
+// Access levels shown in the logged-out public catalogue.
+export const PUBLIC_CATALOGUE_LEVELS: (typeof ACCESS_LEVELS)[number][] = [
+  "PUBLIC",
+  "PREMIUM",
+];
+
 export const libraryResourceRouter = createTRPCRouter({
 
   // ── GET: public library browse list ────────────────────────────────────────
@@ -28,6 +34,10 @@ export const libraryResourceRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       return ctx.db.libraryResource.findMany({
         where: {
+          // Public catalogue: PUBLIC (free) and PREMIUM (paid) resources only.
+          // ENROLLED resources are course material and must never be listed
+          // to logged-out visitors, not even their titles.
+          accessLevel: { in: PUBLIC_CATALOGUE_LEVELS },
           ...(input.type && { type: input.type }),
           ...(input.search && {
             OR: [
@@ -38,8 +48,7 @@ export const libraryResourceRouter = createTRPCRouter({
           }),
         },
         // No fileUrl/uploadedBy here: this is an anonymous, unauthenticated
-        // browse list (both free and premium resources are meant to show up
-        // here, gated behind login on access, not behind visibility).
+        // browse list. Premium resources are listed but gated on access.
         select: {
           id: true,
           title: true,

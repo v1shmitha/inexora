@@ -33,4 +33,23 @@ describe("libraryResource.listPublic", () => {
     expect(args.select).not.toHaveProperty("fileUrl");
     expect(args.select).not.toHaveProperty("uploadedBy");
   });
+
+  it("only lists PUBLIC and PREMIUM resources, never ENROLLED", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const caller = createCaller(
+      makeCtx({ profile: null, db: { libraryResource: { findMany } } }),
+    );
+
+    await caller.listPublic({});
+    await caller.listPublic({ search: "calculus", type: "EBOOK" });
+
+    expect(findMany).toHaveBeenCalledTimes(2);
+    for (const call of findMany.mock.calls) {
+      const args = call[0] as { where?: { accessLevel?: { in?: string[] } } };
+      const levels = args.where?.accessLevel?.in;
+      expect(levels).toBeDefined();
+      expect([...levels!].sort()).toEqual(["PREMIUM", "PUBLIC"]);
+      expect(levels).not.toContain("ENROLLED");
+    }
+  });
 });
