@@ -344,6 +344,7 @@ export default function StudentProfileSetup() {
   const [error, setError] = useState<React.ReactNode>("");
 
   const upsertRecommendationProfile = api.studentProfile.upsertRecommendationProfile.useMutation();
+  const markSetupComplete = api.studentProfile.markSetupComplete.useMutation();
 
   const { data: existingProfile, isLoading: profileLoading, isFetching: profileFetching } =
     api.studentProfile.getMyFullProfile.useQuery(undefined, {
@@ -414,7 +415,6 @@ export default function StudentProfileSetup() {
         gender: form.gender || null,
         nationality: form.nationality || null,
         country: form.countryCode || null,
-        isVerified: true,
       })
       .eq("id", user.id);
     if (profileError) throw profileError;
@@ -465,6 +465,9 @@ export default function StudentProfileSetup() {
       );
       if (qualError) throw qualError;
     }
+
+    // isVerified is server-controlled (locked against browser writes).
+    await markSetupComplete.mutateAsync();
   }
 
   const recommendationInput = () => ({

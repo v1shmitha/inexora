@@ -643,6 +643,31 @@ export const studentProfileRouter = createTRPCRouter({
       return { success: true, profileId: rec.id };
     }),
 
+  // Marks the caller's own profile setup as finished. isVerified is locked
+  // against client writes by a DB trigger, so the profile-setup page calls
+  // this instead of setting it through the browser Supabase client.
+  markSetupComplete: protectedProcedure.mutation(async ({ ctx }) => {
+    if (ctx.profile.role !== "STUDENT") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Students only" });
+    }
+
+    const student = await ctx.db.student.findUnique({
+      where: { profileId: ctx.profile.id },
+      select: { id: true },
+    });
+
+    if (!student) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Student record not found" });
+    }
+
+    await ctx.db.profile.update({
+      where: { id: ctx.profile.id },
+      data: { isVerified: true },
+    });
+
+    return { success: true };
+  }),
+
   // Resets recommendation profile
   resetProfile: protectedProcedure.mutation(async ({ ctx }) => {
     if (ctx.profile.role !== "STUDENT") {
