@@ -237,3 +237,9 @@ DROP TRIGGER IF EXISTS guard_program_privileged_columns ON "Program";
 CREATE TRIGGER guard_program_privileged_columns
   BEFORE INSERT OR UPDATE ON "Program"
   FOR EACH ROW EXECUTE FUNCTION public.guard_program_privileged_columns();
+
+
+-- Removed (INX-124): this let any authenticated user link themselves to any
+-- institution. InstitutionAccount rows are created only by the
+-- createInstitutionAccount admin action, using the service role.
+DROP POLICY IF EXISTS "Users can insert own institution account" ON "InstitutionAccount";
