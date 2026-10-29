@@ -12,10 +12,11 @@ const createCaller = createCallerFactory(studentProfileRouter);
 describe("studentProfile.markSetupComplete", () => {
   it("lets a STUDENT mark only their own profile verified", async () => {
     const update = vi.fn().mockResolvedValue({});
+    const findUnique = vi.fn().mockResolvedValue({ id: "s1" });
     const caller = createCaller(
       makeCtx({
         profile: makeProfile({ id: "student-user", role: "STUDENT" }),
-        db: { profile: { update } },
+        db: { profile: { update }, student: { findUnique } },
       }),
     );
 
@@ -25,6 +26,22 @@ describe("studentProfile.markSetupComplete", () => {
       where: { id: "student-user" },
       data: { isVerified: true },
     });
+  });
+
+  it("denies a STUDENT with no Student row", async () => {
+    const update = vi.fn();
+    const findUnique = vi.fn().mockResolvedValue(null);
+    const caller = createCaller(
+      makeCtx({
+        profile: makeProfile({ role: "STUDENT" }),
+        db: { profile: { update }, student: { findUnique } },
+      }),
+    );
+
+    await expect(caller.markSetupComplete()).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("denies a LECTURER", async () => {

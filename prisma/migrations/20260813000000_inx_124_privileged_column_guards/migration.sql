@@ -1,7 +1,6 @@
 -- INX-124: stop users granting themselves a role, admin rights or moderation
 -- approval via the Supabase API. Idempotent; mirrors supabase/setup.sql.
 -- Hand-written: references auth.users, so not validated against the shadow DB.
--- prisma-client-js skip-validate
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();

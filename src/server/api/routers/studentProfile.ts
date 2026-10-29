@@ -563,15 +563,15 @@ export const studentProfileRouter = createTRPCRouter({
       academicStatus:  student.academicStatus ?? "",
       gpa:             student.gpa ?? "",
       qualifications:  student.qualifications,
-      interests:       (rec?.interests ?? []),
-      careerGoals:     (rec?.careerGoals ?? []),
+      interests:       (rec?.interests ?? []) as string[],
+      careerGoals:     (rec?.careerGoals ?? []) as string[],
       skillLevel:      rec?.skillLevel ?? "",
       preferredMode:   rec?.preferredMode ?? "",
       budgetTierId:    rec?.budgetTierId ?? "",
       countryCode:     rec?.countryCode ?? "",
-      contributionGoals:    (rec?.contributionGoals ?? []),
-      opportunityInterests: (rec?.opportunityInterests ?? []),
-      skills:               (rec?.skills ?? []),
+      contributionGoals:    (rec?.contributionGoals ?? []) as string[],
+      opportunityInterests: (rec?.opportunityInterests ?? []) as string[],
+      skills:               (rec?.skills ?? []) as string[],
     };
   }),
 
@@ -649,6 +649,15 @@ export const studentProfileRouter = createTRPCRouter({
   markSetupComplete: protectedProcedure.mutation(async ({ ctx }) => {
     if (ctx.profile.role !== "STUDENT") {
       throw new TRPCError({ code: "FORBIDDEN", message: "Students only" });
+    }
+
+    const student = await ctx.db.student.findUnique({
+      where: { profileId: ctx.profile.id },
+      select: { id: true },
+    });
+
+    if (!student) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Student record not found" });
     }
 
     await ctx.db.profile.update({

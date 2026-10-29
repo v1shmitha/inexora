@@ -4,6 +4,15 @@ import { createClient } from "~/lib/supabase/server";
 
 const FRESH_ACCOUNT_WINDOW_MS = 10 * 60 * 1000;
 
+// Profile.createdAt is TIMESTAMP(3) without time zone, so PostgREST returns it
+// with no "Z"/offset. new Date() would read that as server-local time and make
+// a fresh account look hours old on a non-UTC server. The value is UTC.
+function parseUtcTimestamp(value: string): number {
+  // Only the time part can carry an offset; the date part contains "-".
+  const hasZone = /(Z|[+-]\d{2}(:?\d{2})?)$/i.test(value.slice(10));
+  return new Date(hasZone ? value : `${value}Z`).getTime();
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -19,8 +28,6 @@ export async function GET(request: NextRequest) {
       // the Profile record directly — the trigger fires on INSERT before
       // updateUser runs, so we patch Profile here to guarantee the correct role.
       if (role && ["STUDENT", "LECTURER", "EMPLOYER"].includes(role)) {
-        await supabase.auth.updateUser({ data: { role } });
-
         // Profile.role is locked against user-session writes by a DB trigger,
         // so this write goes through the admin client. Because the role comes
         // from a query-string param, only apply it to a brand-new account
@@ -28,13 +35,13 @@ export async function GET(request: NextRequest) {
         // otherwise a returning user could re-run this URL to switch roles.
         const admin = createAdminClient();
         const userId = data.user.id;
-        const { data: existing } = await admin
+        const { data: existing, error: profileLookupError } = await admin
           .from("Profile")
           .select("role, createdAt")
           .eq("id", userId)
           .maybeSingle();
 
-        const [student, lecturer, employer] = await Promise.all(
+        const roleRowChecks = await Promise.all(
           ["Student", "Lecturer", "Employer"].map((table) =>
             admin
               .from(table)
@@ -42,28 +49,34 @@ export async function GET(request: NextRequest) {
               .eq("profileId", userId),
           ),
         );
-        const hasRoleRow =
-          (student?.count ?? 0) + (lecturer?.count ?? 0) + (employer?.count ?? 0) > 0;
-        const isFresh =
-          !!existing &&
-          existing.role === "STUDENT" &&
-          !hasRoleRow &&
-          Date.now() - new Date(existing.createdAt as string).getTime() <
-            FRESH_ACCOUNT_WINDOW_MS;
 
-        if (isFresh) {
-          // isActive means "not suspended by an admin" — always true at signup.
-          // Lecturer/employer moderation is gated by their approvalStatus
-          // instead; setting isActive false here made the middleware treat
-          // brand-new accounts as suspended and lock them out of profile-setup.
-          await admin
-            .from("Profile")
-            .update({
-              role: role as "STUDENT" | "LECTURER" | "EMPLOYER",
-              isActive: true,
-              updatedAt: new Date().toISOString(),
-            })
-            .eq("id", userId);
+        if (profileLookupError || roleRowChecks.some((r) => r.error)) {
+          // Fail closed: without a reliable freshness check, don't write a role.
+          console.error("OAuth role assignment skipped: account lookup failed");
+        } else {
+          const hasRoleRow = roleRowChecks.some((r) => (r.count ?? 0) > 0);
+          const isFresh =
+            !!existing &&
+            existing.role === "STUDENT" &&
+            !hasRoleRow &&
+            Date.now() - parseUtcTimestamp(existing.createdAt as string) <
+              FRESH_ACCOUNT_WINDOW_MS;
+
+          if (isFresh) {
+            await supabase.auth.updateUser({ data: { role } });
+            // isActive means "not suspended by an admin" — always true at signup.
+            // Lecturer/employer moderation is gated by their approvalStatus
+            // instead; setting isActive false here made the middleware treat
+            // brand-new accounts as suspended and lock them out of profile-setup.
+            await admin
+              .from("Profile")
+              .update({
+                role: role as "STUDENT" | "LECTURER" | "EMPLOYER",
+                isActive: true,
+                updatedAt: new Date().toISOString(),
+              })
+              .eq("id", userId);
+          }
         }
       }
 
