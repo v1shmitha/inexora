@@ -117,7 +117,7 @@ export default function Header() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 ml-6.5">
-            <img src="/logo1.png" alt="Merittz" className="h-10 w-auto" />
+            <img src="/logo.png" alt="Merittz" className="h-10 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}

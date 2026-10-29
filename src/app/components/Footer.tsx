@@ -45,7 +45,7 @@ export default function Footer() {
             className="inline-flex shrink-0 items-center gap-3"
           >
             <img
-              src="/logo1.png"
+              src="/logo.png"
               alt=""
               className="h-12 w-auto object-contain sm:h-14"
             />
