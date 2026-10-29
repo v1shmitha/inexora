@@ -12,6 +12,9 @@ const RESOURCE_TYPE_LABELS: Record<string, string> = {
   EBOOK: "E-Book", JOURNAL: "Journal", VIDEO_LECTURE: "Video Lecture",
   RESEARCH_PAPER: "Research Paper", SIMULATION: "Simulation", PAST_PAPER: "Past Paper",
 };
+type ResourceTypeKey =
+  | "EBOOK" | "JOURNAL" | "VIDEO_LECTURE"
+  | "RESEARCH_PAPER" | "SIMULATION" | "PAST_PAPER";
 
 const RESOURCE_TYPE_ICONS: Record<string, React.ReactNode> = {
   EBOOK:          <BookOpen className="h-5 w-5 text-blue-500" />,
@@ -30,7 +33,7 @@ const RESOURCE_TYPE_BG: Record<string, string> = {
 export default function PublicResourcesPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [resourceType, setResourceType] = useState<string>("");
+  const [resourceType, setResourceType] = useState<ResourceTypeKey | "">("");
 
   const { data: resources = [], isLoading } = api.libraryResource.listPublic.useQuery({
     search: search || undefined,
@@ -71,7 +74,7 @@ export default function PublicResourcesPage() {
             </div>
             <select
               value={resourceType}
-              onChange={(e) => setResourceType(e.target.value)}
+              onChange={(e) => setResourceType(e.target.value as ResourceTypeKey | "")}
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-blue-400"
             >
               <option value="">All Types</option>

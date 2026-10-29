@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  lecturerProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 
 const RESOURCE_TYPES = [
   "EBOOK",
@@ -13,7 +17,52 @@ const RESOURCE_TYPES = [
 
 const ACCESS_LEVELS = ["PUBLIC", "ENROLLED", "PREMIUM"] as const;
 
+// Access levels shown in the logged-out public catalogue.
+export const PUBLIC_CATALOGUE_LEVELS: (typeof ACCESS_LEVELS)[number][] = [
+  "PUBLIC",
+  "PREMIUM",
+];
+
 export const libraryResourceRouter = createTRPCRouter({
+
+  // ── GET: public library browse list ────────────────────────────────────────
+  listPublic: publicProcedure
+    .input(z.object({
+      search: z.string().optional(),
+      type: z.enum(RESOURCE_TYPES).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.libraryResource.findMany({
+        where: {
+          // Public catalogue: PUBLIC (free) and PREMIUM (paid) resources only.
+          // ENROLLED resources are course material and must never be listed
+          // to logged-out visitors, not even their titles.
+          accessLevel: { in: PUBLIC_CATALOGUE_LEVELS },
+          ...(input.type && { type: input.type }),
+          ...(input.search && {
+            OR: [
+              { title: { contains: input.search, mode: "insensitive" } },
+              { author: { contains: input.search, mode: "insensitive" } },
+              { description: { contains: input.search, mode: "insensitive" } },
+            ],
+          }),
+        },
+        // No fileUrl/uploadedBy here: this is an anonymous, unauthenticated
+        // browse list. Premium resources are listed but gated on access.
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          author: true,
+          yearPublished: true,
+          description: true,
+          isFree: true,
+          views: true,
+          downloads: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }),
 
   // ── GET: all resources uploaded by this lecturer ──────────────────────────
   getMyResources: lecturerProcedure.query(async ({ ctx }) => {

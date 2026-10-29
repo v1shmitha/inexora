@@ -9,11 +9,6 @@
       "count": 4
     }
   },
-  "src/app/(public)/courses/[id]/page.tsx": {
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "src/app/(public)/courses/page.tsx": {
     "react/no-unescaped-entities": {
       "count": 1
@@ -36,17 +31,8 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 7
-    },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 5
-    },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 31
-    },
-    "@typescript-eslint/no-unsafe-return": {
-      "count": 1
+      "count": 18
     }
   },
   "src/app/admin/actions.ts": {
@@ -213,11 +199,8 @@
     "@typescript-eslint/no-unnecessary-type-assertion": {
       "count": 1
     },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 3
+      "count": 1
     }
   },
   "src/app/dashboard/lecturer/students/page.tsx": {

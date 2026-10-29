@@ -1276,7 +1276,7 @@ export default function StudentProfileSetup() {
             <div className="grid grid-cols-3 gap-2.5">
               {SKILL_LEVELS.map((level) => {
                 const info = SKILL_DISPLAY[level]!;
-                const Icon = SKILL_LEVEL_ICONS[level];
+                const Icon = SKILL_LEVEL_ICONS[level]!;
                 const selected = form.skillLevel === level;
                 return (
                   <button
@@ -1302,7 +1302,7 @@ export default function StudentProfileSetup() {
             <div className="grid grid-cols-3 gap-2.5">
               {DELIVERY_MODES.map((mode) => {
                 const info = MODE_DISPLAY[mode]!;
-                const Icon = DELIVERY_MODE_ICONS[mode];
+                const Icon = DELIVERY_MODE_ICONS[mode]!;
                 const selected = form.preferredMode === mode;
                 return (
                   <button

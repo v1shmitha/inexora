@@ -69,6 +69,9 @@ export const courseRouter = createTRPCRouter({
           year: true,
           localPrice: true,
           foreignPrice: true,
+          program: {
+            select: { id: true, title: true },
+          },
           courseLecturers: {
             select: {
               lecturer: {
