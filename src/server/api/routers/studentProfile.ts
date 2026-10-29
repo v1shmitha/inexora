@@ -563,15 +563,15 @@ export const studentProfileRouter = createTRPCRouter({
       academicStatus:  student.academicStatus ?? "",
       gpa:             student.gpa ?? "",
       qualifications:  student.qualifications,
-      interests:       (rec?.interests ?? []) as string[],
-      careerGoals:     (rec?.careerGoals ?? []) as string[],
+      interests:       (rec?.interests ?? []),
+      careerGoals:     (rec?.careerGoals ?? []),
       skillLevel:      rec?.skillLevel ?? "",
       preferredMode:   rec?.preferredMode ?? "",
       budgetTierId:    rec?.budgetTierId ?? "",
       countryCode:     rec?.countryCode ?? "",
-      contributionGoals:    (rec?.contributionGoals ?? []) as string[],
-      opportunityInterests: (rec?.opportunityInterests ?? []) as string[],
-      skills:               (rec?.skills ?? []) as string[],
+      contributionGoals:    (rec?.contributionGoals ?? []),
+      opportunityInterests: (rec?.opportunityInterests ?? []),
+      skills:               (rec?.skills ?? []),
     };
   }),
 
@@ -642,6 +642,22 @@ export const studentProfileRouter = createTRPCRouter({
 
       return { success: true, profileId: rec.id };
     }),
+
+  // Marks the caller's own profile setup as finished. isVerified is locked
+  // against client writes by a DB trigger, so the profile-setup page calls
+  // this instead of setting it through the browser Supabase client.
+  markSetupComplete: protectedProcedure.mutation(async ({ ctx }) => {
+    if (ctx.profile.role !== "STUDENT") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Students only" });
+    }
+
+    await ctx.db.profile.update({
+      where: { id: ctx.profile.id },
+      data: { isVerified: true },
+    });
+
+    return { success: true };
+  }),
 
   // Resets recommendation profile
   resetProfile: protectedProcedure.mutation(async ({ ctx }) => {
