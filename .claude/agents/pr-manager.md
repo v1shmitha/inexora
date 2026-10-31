@@ -16,7 +16,12 @@ happened.
 2. Open the PR with `gh pr create` targeting the repo's default branch
    (never `main` directly as a source, always the feature branch),
    using the PR body format below as `--body`.
-3. Post an update comment on the Jira issue (and the epic, if this closes
+3. Move the Jira issue to In Review via the Atlassian MCP tools: get its
+   transitions and pick the one whose target status is "In Review"
+   (or "Code Review" / "Review"). If there's none, or the issue is
+   already In Review or Done, skip this and mention it in one line.
+   Never set Done; merging the PR does that through Jira automation.
+4. Post an update comment on the Jira issue (and the epic, if this closes
    out epic-related work) via the Atlassian MCP tools summarizing what
    shipped and linking the PR.
 
