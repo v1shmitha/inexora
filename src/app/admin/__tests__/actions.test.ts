@@ -203,6 +203,15 @@ describe("admin actions: authorization", () => {
     expectNoSideEffects();
   });
 
+  it("fails closed when a user exists but has no profile row", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "caller" } } });
+    mocks.profileFindUnique.mockResolvedValue(null);
+    await expect(actions.deleteUser("p1")).rejects.toThrow(
+      "Not authenticated",
+    );
+    expectNoSideEffects();
+  });
+
   it("denies a profile with is_admin true but role STUDENT", async () => {
     mocks.getUser.mockResolvedValue({ data: { user: { id: "caller" } } });
     mocks.profileFindUnique.mockResolvedValue({
@@ -269,6 +278,19 @@ describe("admin actions: admin allowed", () => {
     );
     expect((insert?.payload as { email: string }).email).toBe("");
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("createInstitution still accepts a blank country", async () => {
+    await actions.createInstitution({
+      name: "Uni",
+      type: "UNIVERSITY",
+      country: "",
+      email: "",
+    });
+    const insert = mocks.writes.find(
+      (w) => w.table === "Institution" && w.op === "insert",
+    );
+    expect((insert?.payload as { country: string }).country).toBe("");
   });
 
   it("createInstitutionAccount returns the link", async () => {

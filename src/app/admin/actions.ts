@@ -30,7 +30,7 @@ const emailSchema = z.string().email("Invalid email").optional().or(z.literal(""
 const createInstitutionSchema = z.object({
   name: z.string().min(1, "Institution name is required"),
   type: z.string().min(1, "Institution type is required"),
-  country: z.string().min(1, "Country is required"),
+  country: z.string().optional(),
   email: emailSchema,
   city: z.string().optional(),
   website: z.string().optional(),
@@ -286,10 +286,10 @@ export async function createInstitution(data: {
   description?: string;
 }) {
   await requireAdmin();
-  data = parse(createInstitutionSchema, data);
+  const input = parse(createInstitutionSchema, data);
   const supabase = createAdminClient();
 
-  const baseSlug = data.name
+  const baseSlug = input.name
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9\s-]/g, "")
@@ -302,14 +302,14 @@ export async function createInstitution(data: {
     .from("Institution")
     .insert({
       id: crypto.randomUUID(),
-      name: data.name,
+      name: input.name,
       slug,
-      type: data.type,
-      country: data.country,
-      city: data.city ?? null,
-      email: data.email ?? null,
-      website: data.website ?? null,
-      description: data.description ?? null,
+      type: input.type,
+      country: input.country,
+      city: input.city ?? null,
+      email: input.email ?? null,
+      website: input.website ?? null,
+      description: input.description ?? null,
       isActive: true,
       isVerified: true,
       approvalStatus: "APPROVED",
@@ -337,11 +337,11 @@ export async function updateInstitution(
 ) {
   await requireAdmin();
   parse(idSchema, id);
-  data = parse(updateInstitutionSchema, data);
+  const input = parse(updateInstitutionSchema, data);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
-    .update({ ...data, updatedAt: new Date().toISOString() })
+    .update({ ...input, updatedAt: new Date().toISOString() })
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
