@@ -2,11 +2,64 @@
 
 import { createAdminClient } from "~/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { db } from "~/server/db";
+import { requireAdmin } from "~/server/auth/admin";
+
+const idSchema = z.string().min(1, "Invalid id");
+const flagSchema = z.boolean();
+
+const permsSchema = z.object({
+  canEditProfile: z.boolean(),
+  canManagePrograms: z.boolean(),
+  canViewAnalytics: z.boolean(),
+  canPostAnnouncements: z.boolean(),
+});
+
+const assignManagerSchema = z.object({
+  institutionId: idSchema,
+  lecturerId: idSchema,
+  canEditProfile: z.boolean().optional(),
+  canManagePrograms: z.boolean().optional(),
+  canViewAnalytics: z.boolean().optional(),
+  canPostAnnouncements: z.boolean().optional(),
+});
+
+const emailSchema = z.string().email("Invalid email").optional().or(z.literal(""));
+
+const createInstitutionSchema = z.object({
+  name: z.string().min(1, "Institution name is required"),
+  type: z.string().min(1, "Institution type is required"),
+  country: z.string().min(1, "Country is required"),
+  email: emailSchema,
+  city: z.string().optional(),
+  website: z.string().optional(),
+  description: z.string().optional(),
+});
+
+const updateInstitutionSchema = z.object({
+  name: z.string().min(1, "Institution name is required").optional(),
+  type: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  email: emailSchema,
+  website: z.string().optional(),
+  description: z.string().optional(),
+});
+
+function parse<T>(schema: z.ZodType<T>, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  return result.data;
+}
 
 // ── Users ──────────────────────────────────────────────────────────────────
 
 export async function suspendUser(profileId: string) {
+  await requireAdmin();
+  parse(idSchema, profileId);
   const supabase = createAdminClient();
 
   // Suspend the profile
@@ -30,6 +83,8 @@ export async function suspendUser(profileId: string) {
 }
 
 export async function reactivateUser(profileId: string) {
+  await requireAdmin();
+  parse(idSchema, profileId);
   const supabase = createAdminClient();
 
   await db.profile.update({
@@ -52,6 +107,8 @@ export async function reactivateUser(profileId: string) {
 }
 
 export async function deleteUser(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
 
   const { data: students } = await supabase.from("Student").select("id").eq("profileId", id);
@@ -122,6 +179,8 @@ export async function deleteUser(id: string) {
 // ── Lecturers ──────────────────────────────────────────────────────────────
 
 export async function approveLecturer(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
 
   const { data: lec, error: fetchError } = await supabase
@@ -147,6 +206,8 @@ export async function approveLecturer(id: string) {
 }
 
 export async function rejectLecturer(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Lecturer")
@@ -159,6 +220,8 @@ export async function rejectLecturer(id: string) {
 // ── Institutions ───────────────────────────────────────────────────────────
 
 export async function approveInstitution(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
@@ -169,6 +232,8 @@ export async function approveInstitution(id: string) {
 }
 
 export async function rejectInstitution(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
@@ -179,6 +244,8 @@ export async function rejectInstitution(id: string) {
 }
 
 export async function suspendInstitution(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
@@ -189,6 +256,8 @@ export async function suspendInstitution(id: string) {
 }
 
 export async function reactivateInstitution(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
@@ -199,6 +268,8 @@ export async function reactivateInstitution(id: string) {
 }
 
 export async function deleteInstitution(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase.from("Institution").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -214,6 +285,8 @@ export async function createInstitution(data: {
   website?: string;
   description?: string;
 }) {
+  await requireAdmin();
+  data = parse(createInstitutionSchema, data);
   const supabase = createAdminClient();
 
   const baseSlug = data.name
@@ -262,6 +335,9 @@ export async function updateInstitution(
     description?: string;
   },
 ) {
+  await requireAdmin();
+  parse(idSchema, id);
+  data = parse(updateInstitutionSchema, data);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Institution")
@@ -272,6 +348,8 @@ export async function updateInstitution(
 }
 
 export async function createInstitutionAccount(institutionId: string) {
+  await requireAdmin();
+  parse(idSchema, institutionId);
   const supabase = createAdminClient();
 
   const { data: institution, error: instError } = await supabase
@@ -376,6 +454,8 @@ export async function createInstitutionAccount(institutionId: string) {
 }
 
 export async function deleteInstitutionAccount(institutionId: string) {
+  await requireAdmin();
+  parse(idSchema, institutionId);
   const supabase = createAdminClient();
 
   const { data: account } = await supabase
@@ -400,6 +480,8 @@ export async function deleteInstitutionAccount(institutionId: string) {
 // ── Employers ──────────────────────────────────────────────────────────────
 
 export async function approveEmployer(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
 
   const { data: emp, error: fetchError } = await supabase
@@ -425,6 +507,8 @@ export async function approveEmployer(id: string) {
 }
 
 export async function rejectEmployer(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Employer")
@@ -437,6 +521,8 @@ export async function rejectEmployer(id: string) {
 // ── Re-approve rejected ────────────────────────────────────────────────────
 
 export async function reApproveLecturer(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
 
   const { data: lec, error: fetchError } = await supabase
@@ -462,6 +548,8 @@ export async function reApproveLecturer(id: string) {
 }
 
 export async function reApproveEmployer(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
 
   const { data: emp, error: fetchError } = await supabase
@@ -489,6 +577,9 @@ export async function reApproveEmployer(id: string) {
 // ── Programs ───────────────────────────────────────────────────────────────
 
 export async function toggleProgram(id: string, current: boolean) {
+  await requireAdmin();
+  parse(idSchema, id);
+  parse(flagSchema, current);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("Program")
@@ -499,6 +590,8 @@ export async function toggleProgram(id: string, current: boolean) {
 }
 
 export async function deleteProgram(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase.from("Program").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -508,6 +601,9 @@ export async function deleteProgram(id: string) {
 // ── Jobs ───────────────────────────────────────────────────────────────────
 
 export async function toggleJob(id: string, current: boolean) {
+  await requireAdmin();
+  parse(idSchema, id);
+  parse(flagSchema, current);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("JobListing")
@@ -518,6 +614,8 @@ export async function toggleJob(id: string, current: boolean) {
 }
 
 export async function deleteJob(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase.from("JobListing").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -533,25 +631,28 @@ export async function assignManager(data: {
   canManagePrograms?: boolean;
   canViewAnalytics?: boolean;
   canPostAnnouncements?: boolean;
-  assignedBy?: string;
 }) {
+  const admin = await requireAdmin();
+  const input = parse(assignManagerSchema, data);
   const supabase = createAdminClient();
   const { error } = await supabase.from("InstitutionManager").insert({
     id: crypto.randomUUID(),
-    institutionId: data.institutionId,
-    lecturerId: data.lecturerId,
-    canEditProfile: data.canEditProfile ?? false,
-    canManagePrograms: data.canManagePrograms ?? true,
-    canViewAnalytics: data.canViewAnalytics ?? true,
-    canPostAnnouncements: data.canPostAnnouncements ?? false,
+    institutionId: input.institutionId,
+    lecturerId: input.lecturerId,
+    canEditProfile: input.canEditProfile ?? false,
+    canManagePrograms: input.canManagePrograms ?? true,
+    canViewAnalytics: input.canViewAnalytics ?? true,
+    canPostAnnouncements: input.canPostAnnouncements ?? false,
     assignedAt: new Date().toISOString(),
-    assignedBy: data.assignedBy ?? null,
+    assignedBy: admin.id,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }
 
 export async function removeManager(id: string) {
+  await requireAdmin();
+  parse(idSchema, id);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("InstitutionManager")
@@ -570,10 +671,13 @@ export async function updateManagerPermissions(
     canPostAnnouncements: boolean;
   },
 ) {
+  await requireAdmin();
+  parse(idSchema, id);
+  const validPerms = parse(permsSchema, perms);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("InstitutionManager")
-    .update(perms)
+    .update(validPerms)
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
