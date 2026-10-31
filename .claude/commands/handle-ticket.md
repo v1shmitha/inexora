@@ -76,6 +76,29 @@ RLS, a destructive migration, or grows past roughly 8 files), stop,
 say so in one line, and move up one size, keeping any work already
 done that is still valid. Never move down a size on your own.
 
+## Jira status (all sizes)
+
+Keep the Jira issue's status in step with the work, using the Atlassian
+MCP tools (get the issue's available transitions, then transition it):
+
+1. **In Progress**: right after you state the size, move the issue to
+   In Progress.
+2. **In Review**: right after the PR is opened, move the issue to In
+   Review (a transition to "Code Review" or "Review" counts too).
+3. **Done**: never set this yourself. Merging the PR moves the issue to
+   Done through a Jira automation rule. The user merges, not you.
+
+Rules:
+- Match transitions by their target status name, ignoring case. If the
+  workflow has no matching transition, skip that step and say so in
+  one line. A missing status never stops or fails the ticket.
+- Never move an issue backwards: if it is already at that status or
+  further along (e.g. already In Review or Done), leave it.
+- For an epic key, don't change the epic's status; only move the child
+  issues you actually work on.
+- If you stop to wait for the user (approval, open question, manual UI
+  test), leave the status as it is.
+
 ## TINY path
 
 No subagents. In the main session:
@@ -87,7 +110,8 @@ No subagents. In the main session:
 3. Run `npm run check` (lint + typecheck) and `npm test`.
 4. If it touches UI, give the user a short manual check (2 to 4 items)
    and wait for "passed" before pushing.
-5. Commit, push, open the PR, and post the Jira comment yourself, using
+5. Commit, push, open the PR, move the issue to In Review (see Jira
+   status above), and post the Jira comment yourself, using
    the same conventions as the full pipeline (see CLAUDE.md).
 
 ## STANDARD path
@@ -113,7 +137,8 @@ review. No researcher, architect, implementer, or pr-manager agents.
    re-run it; at most 2 rounds, then stop and report as in the full
    pipeline.
 5. **UI gate**: same as step 5 of the full pipeline.
-6. **PR**: push, open the PR, and post the Jira comment yourself, using
+6. **PR**: push, open the PR, move the issue to In Review (see Jira
+   status above), and post the Jira comment yourself, using
    the PR and Jira formats in `.claude/agents/pr-manager.md`.
 
 ## FULL path (full pipeline)
