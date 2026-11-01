@@ -11,6 +11,7 @@ import { createClient } from "~/lib/supabase/client";
 import Button from "~/app/components/ui/Button";
 import Badge from "~/app/components/ui/Badge";
 import EmptyState from "~/app/components/ui/EmptyState";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -139,8 +140,8 @@ export default function ProgramsPage() {
     const matchMode   = modeFilter === "ALL"  || p.deliveryMode === modeFilter;
     const matchPrice  =
       priceFilter === "ALL" ||
-      (priceFilter === "FREE" && (!p.localPrice || p.localPrice === 0)) ||
-      (priceFilter === "PAID" && p.localPrice && p.localPrice > 0);
+      (priceFilter === "FREE" && isFreePricing(p.localPrice, p.foreignPrice)) ||
+      (priceFilter === "PAID" && !isFreePricing(p.localPrice, p.foreignPrice));
     return matchSearch && matchType && matchField && matchMode && matchPrice;
   });
 
@@ -346,14 +347,16 @@ export default function ProgramsPage() {
                 {/* Price + CTA */}
                 <div className="mt-auto flex items-center justify-between border-t border-slate-100 px-5 py-4">
                   <div>
-                    {program.localPrice && program.localPrice > 0 ? (
+                    {!isFreePricing(program.localPrice, program.foreignPrice) ? (
                       <div>
                         <p className="text-base font-bold text-slate-900">
-                          LKR {program.localPrice.toLocaleString()}
+                          {toPriceNumber(program.localPrice) !== null
+                            ? `LKR ${toPriceNumber(program.localPrice)?.toLocaleString()}`
+                            : `USD ${toPriceNumber(program.foreignPrice)?.toLocaleString()}`}
                         </p>
-                        {program.foreignPrice && (
+                        {toPriceNumber(program.localPrice) !== null && toPriceNumber(program.foreignPrice) !== null && (
                           <p className="text-xs text-slate-400">
-                            USD {program.foreignPrice.toLocaleString()}
+                            USD {toPriceNumber(program.foreignPrice)?.toLocaleString()}
                           </p>
                         )}
                       </div>

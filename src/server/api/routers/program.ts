@@ -7,6 +7,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { priceUsdFields } from "~/lib/pricing";
 
 const programInput = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -37,18 +38,6 @@ function isProgramComplete(data: z.infer<typeof programInput>): boolean {
 
 function generateSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-// foreignPrice is entered directly in USD (the international-student rate,
-// which is what the recommendation engine's budget matching compares
-// against) — see src/lib/recommendation/hardFilters.ts. Keeping priceUsd
-// in sync here means new/edited programs stay matchable without a
-// separate backfill step.
-function priceUsdFields(foreignPrice: number | null | undefined) {
-  return {
-    priceUsd: foreignPrice ?? null,
-    priceUsdUpdatedAt: foreignPrice != null ? new Date() : null,
-  };
 }
 
 export const programRouter = createTRPCRouter({
@@ -234,7 +223,7 @@ export const programRouter = createTRPCRouter({
 
       return db.program.update({
         where: { id: input.id },
-        data: { ...input.data, approvalStatus: newApprovalStatus, ...priceUsdFields(input.data.foreignPrice) },
+        data: { ...input.data, approvalStatus: newApprovalStatus, ...(input.data.foreignPrice !== undefined ? priceUsdFields(input.data.foreignPrice) : {}) },
       });
     }),
 

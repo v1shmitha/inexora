@@ -1,16 +1,104 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import {
+  DeliveryMode,
+  ProgramField,
+  ProgramLevel,
+  ProgramType,
+} from "@prisma/client";
 import { createAdminClient } from "~/lib/supabase/admin";
-import { createClient  } from "~/lib/supabase/server";
+import { createClient } from "~/lib/supabase/server";
+import { priceUsdFields } from "~/lib/pricing";
+import {
+  requireInstitution,
+  type InstitutionCaller,
+} from "~/server/auth/institution";
 import { db } from "~/server/db";
 
-function generateId(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+// Non-async exports are not allowed in a "use server" file, so these
+// helpers stay file-local.
+const idSchema = z.string().min(1, "Invalid id");
+const flagSchema = z.boolean();
+
+function parse<T>(schema: z.ZodType<T>, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  return result.data;
+}
+
+const createProgramSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  type: z.nativeEnum(ProgramType),
+  level: z.nativeEnum(ProgramLevel),
+  field: z.nativeEnum(ProgramField),
+  deliveryMode: z.nativeEnum(DeliveryMode),
+  durationMonths: z.number().int().positive().optional(),
+  description: z.string().optional(),
+  entryRequirements: z.string().optional(),
+  localPrice: z.number().positive().optional(),
+  foreignPrice: z.number().positive().optional(),
+});
+
+const updateProgramSchema = z.object({
+  title: z.string().trim().optional(),
+  type: z.nativeEnum(ProgramType).optional(),
+  level: z.nativeEnum(ProgramLevel).optional(),
+  deliveryMode: z.nativeEnum(DeliveryMode).optional(),
+  durationMonths: z.number().int().positive().optional(),
+  description: z.string().optional(),
+  entryRequirements: z.string().optional(),
+  localPrice: z.number().positive().optional(),
+  foreignPrice: z.number().positive().optional(),
+});
+
+const createAnnouncementSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  content: z.string().optional(),
+});
+
+const emailSchema = z
+  .string()
+  .email("Invalid email")
+  .optional()
+  .or(z.literal(""));
+
+const institutionProfileSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  website: z.string().optional(),
+  email: emailSchema,
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+});
+
+// Same error for a missing row and another institution's row, so ids
+// cannot be probed across institutions.
+async function loadOwnedProgram(id: string, caller: InstitutionCaller) {
+  const row = await db.program.findUnique({
+    where: { id },
+    select: { institutionId: true, isPublished: true },
   });
+  if (row?.institutionId !== caller.institutionId) {
+    throw new Error("Not found");
+  }
+  return row;
+}
+
+async function loadOwnedAnnouncement(id: string, caller: InstitutionCaller) {
+  const row = await db.announcement.findUnique({
+    where: { id },
+    select: { institutionId: true, isPublished: true },
+  });
+  if (row?.institutionId !== caller.institutionId) {
+    throw new Error("Not found");
+  }
+  return row;
 }
 
 function slugify(text: string): string {
@@ -27,7 +115,6 @@ function slugify(text: string): string {
 // ── Programs ──────────────────────────────────────────────────────────────
 
 export async function createProgram(data: {
-  institutionId: string;
   title: string;
   type: string;
   level: string;
@@ -39,44 +126,48 @@ export async function createProgram(data: {
   localPrice?: number;
   foreignPrice?: number;
 }) {
-  const supabase = createAdminClient(); // Use admin client
-  const newId = generateId();
+  const caller = await requireInstitution();
+  const input = parse(createProgramSchema, data);
 
-  const { data: program, error } = await supabase
-    .from("Program")
-    .insert({
-      id: newId,
-      institutionId: data.institutionId,
-      title: data.title,
-      slug: slugify(data.title),
-      type: data.type,
-      level: data.level,
-      field: data.field,
-      deliveryMode: data.deliveryMode,
-      durationMonths: data.durationMonths ?? null,
-      description: data.description ?? null,
-      entryRequirements: data.entryRequirements ?? null,
-      localPrice: data.localPrice ?? null,
-      foreignPrice: data.foreignPrice ?? null,
+  const program = await db.program.create({
+    data: {
+      institutionId: caller.institutionId,
+      title: input.title,
+      slug: slugify(input.title),
+      type: input.type,
+      level: input.level,
+      field: input.field,
+      deliveryMode: input.deliveryMode,
+      durationMonths: input.durationMonths ?? null,
+      description: input.description ?? null,
+      entryRequirements: input.entryRequirements ?? null,
+      localPrice: input.localPrice ?? null,
+      foreignPrice: input.foreignPrice ?? null,
       isPublished: false,
       isActive: true,
       approvalStatus: "APPROVED",
       language: ["English"],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    .select(
-      "id, title, type, level, isPublished, approvalStatus, createdAt, durationMonths, deliveryMode",
-    )
-    .single();
-
-  if (error) {
-    console.error("Create program error:", error);
-    throw new Error(error.message);
-  }
+      ...priceUsdFields(input.foreignPrice),
+    },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      level: true,
+      isPublished: true,
+      approvalStatus: true,
+      createdAt: true,
+      durationMonths: true,
+      deliveryMode: true,
+    },
+  });
 
   revalidatePath("/institution");
-  return { ...program, courses: [] };
+  return {
+    ...program,
+    createdAt: program.createdAt.toISOString(),
+    courses: [],
+  };
 }
 
 export async function updateProgram(
@@ -93,59 +184,78 @@ export async function updateProgram(
     foreignPrice?: number;
   },
 ) {
-  const supabase = createAdminClient();
+  const caller = await requireInstitution();
+  parse(idSchema, id);
+  const input = parse(updateProgramSchema, data);
+  await loadOwnedProgram(id, caller);
 
-  const { error } = await supabase
-    .from("Program")
-    .update({
-      ...(data.title && { title: data.title }),
-      ...(data.type && { type: data.type }),
-      ...(data.level && { level: data.level }),
-      ...(data.deliveryMode && { deliveryMode: data.deliveryMode }),
-      ...(data.durationMonths && { durationMonths: data.durationMonths }),
-      ...(data.description && { description: data.description }),
-      ...(data.entryRequirements && {
-        entryRequirements: data.entryRequirements,
+  await db.program.update({
+    where: { id },
+    data: {
+      ...(input.title && { title: input.title }),
+      ...(input.type && { type: input.type }),
+      ...(input.level && { level: input.level }),
+      ...(input.deliveryMode && { deliveryMode: input.deliveryMode }),
+      ...(input.durationMonths && { durationMonths: input.durationMonths }),
+      ...(input.description && { description: input.description }),
+      ...(input.entryRequirements && {
+        entryRequirements: input.entryRequirements,
       }),
-      ...(data.localPrice && { localPrice: data.localPrice }),
-      ...(data.foreignPrice && { foreignPrice: data.foreignPrice }),
-    })
-    .eq("id", id);
+      ...(input.localPrice && { localPrice: input.localPrice }),
+      ...(input.foreignPrice && {
+        foreignPrice: input.foreignPrice,
+        ...priceUsdFields(input.foreignPrice),
+      }),
+    },
+  });
 
-  if (error) throw new Error(error.message);
   revalidatePath("/institution");
 }
 
 export async function toggleProgram(id: string, current: boolean) {
-  const supabase = createAdminClient(); // Use admin client for database operations
-  
-  const { error } = await supabase
-    .from("Program")
-    .update({ isPublished: !current })
-    .eq("id", id);
-    
-  if (error) {
-    console.error("Toggle program error:", error);
-    throw new Error(error.message);
-  }
-  
+  const caller = await requireInstitution();
+  parse(idSchema, id);
+  parse(flagSchema, current);
+  // The new state comes from the stored row, not the client view of it.
+  const row = await loadOwnedProgram(id, caller);
+
+  await db.program.update({
+    where: { id },
+    data: { isPublished: !row.isPublished },
+  });
+
   revalidatePath("/institution");
 }
 
 export async function deleteProgram(id: string) {
-  const supabase = createAdminClient(); // Use admin client
-  
-  // Delete related records first
-  await supabase.from("CourseEnrollment").delete().eq("courseId", id);
-  await supabase.from("CourseLecturer").delete().eq("courseId", id);
-  await supabase.from("Assessment").delete().eq("courseId", id);
-  await supabase.from("Course").delete().eq("programId", id);
-  await supabase.from("Enrollment").delete().eq("programId", id);
-  await supabase.from("Credential").delete().eq("programId", id);
-  
-  const { error } = await supabase.from("Program").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  
+  const caller = await requireInstitution();
+  parse(idSchema, id);
+  await loadOwnedProgram(id, caller);
+
+  await db.$transaction(async (tx) => {
+    const enrollments = await tx.enrollment.count({ where: { programId: id } });
+    const courseEnrollments = await tx.courseEnrollment.count({
+      where: { course: { programId: id } },
+    });
+    const credentials = await tx.credential.count({ where: { programId: id } });
+    const submissions = await tx.assessmentSubmission.count({
+      where: { assessment: { course: { programId: id } } },
+    });
+    if (enrollments + courseEnrollments + credentials + submissions > 0) {
+      throw new Error(
+        "Cannot delete a program that has enrollments, credentials or submissions. Unpublish it instead.",
+      );
+    }
+
+    await tx.assessment.deleteMany({ where: { course: { programId: id } } });
+    await tx.courseLecturer.deleteMany({
+      where: { course: { programId: id } },
+    });
+    await tx.course.deleteMany({ where: { programId: id } });
+    await tx.announcement.deleteMany({ where: { programId: id } });
+    await tx.program.delete({ where: { id } });
+  });
+
   revalidatePath("/institution");
 }
 
@@ -153,11 +263,11 @@ export async function deleteProgram(id: string) {
 
 async function getCurrentUser() {
   const supabase = await createClient(); // Remove await - createAdminClient is not async
-  
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  
+
   if (!user) throw new Error("Unauthorized");
 
   const { data: profile } = await supabase
@@ -176,7 +286,7 @@ async function getCurrentUser() {
       .select("id")
       .eq("profileId", profile.id)
       .single();
-    
+
     lecturerId = lecturer?.id ?? null;
   }
 
@@ -188,7 +298,7 @@ async function getCurrentUser() {
 
 export async function approveLecturer(lecturerId: string) {
   const user = await getCurrentUser();
-  
+
   const lecturer = await db.lecturer.findUnique({
     where: { id: lecturerId },
   });
@@ -212,8 +322,8 @@ export async function approveLecturer(lecturerId: string) {
     const account = await db.institutionAccount.findFirst({
       where: {
         profileId: user.id,
-        institutionId: lecturer.institutionId
-      }
+        institutionId: lecturer.institutionId,
+      },
     });
 
     if (!account) {
@@ -234,9 +344,9 @@ export async function approveLecturer(lecturerId: string) {
 
 export async function rejectLecturer(lecturerId: string) {
   const user = await getCurrentUser();
-  
+
   const lecturer = await db.lecturer.findUnique({
-    where: { id: lecturerId }
+    where: { id: lecturerId },
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
@@ -246,7 +356,7 @@ export async function rejectLecturer(lecturerId: string) {
   if (user.role === "ADMIN") {
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "REJECTED" }
+      data: { approvalStatus: "REJECTED" },
     });
     revalidatePath("/admin");
     revalidatePath("/institution");
@@ -258,8 +368,8 @@ export async function rejectLecturer(lecturerId: string) {
     const account = await db.institutionAccount.findFirst({
       where: {
         profileId: user.id,
-        institutionId: lecturer.institutionId
-      }
+        institutionId: lecturer.institutionId,
+      },
     });
 
     if (!account) {
@@ -268,7 +378,7 @@ export async function rejectLecturer(lecturerId: string) {
 
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "REJECTED" }
+      data: { approvalStatus: "REJECTED" },
     });
 
     revalidatePath("/institution");
@@ -280,9 +390,9 @@ export async function rejectLecturer(lecturerId: string) {
 
 export async function reApproveLecturer(lecturerId: string) {
   const user = await getCurrentUser();
-  
+
   const lecturer = await db.lecturer.findUnique({
-    where: { id: lecturerId }
+    where: { id: lecturerId },
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
@@ -296,7 +406,7 @@ export async function reApproveLecturer(lecturerId: string) {
   if (user.role === "ADMIN") {
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "APPROVED" }
+      data: { approvalStatus: "APPROVED" },
     });
     revalidatePath("/admin");
     revalidatePath("/institution");
@@ -308,8 +418,8 @@ export async function reApproveLecturer(lecturerId: string) {
     const account = await db.institutionAccount.findFirst({
       where: {
         profileId: user.id,
-        institutionId: lecturer.institutionId
-      }
+        institutionId: lecturer.institutionId,
+      },
     });
 
     if (!account) {
@@ -318,7 +428,7 @@ export async function reApproveLecturer(lecturerId: string) {
 
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "APPROVED" }
+      data: { approvalStatus: "APPROVED" },
     });
 
     revalidatePath("/institution");
@@ -452,81 +562,89 @@ export async function deleteLecturer(lecturerId: string) {
 // ── Announcements ─────────────────────────────────────────────────────────
 
 export async function createAnnouncement(data: {
-  institutionId: string;
-  publishedBy: string;
   title: string;
   content?: string;
 }) {
-  const supabase = createAdminClient();
+  const caller = await requireInstitution();
+  const input = parse(createAnnouncementSchema, data);
 
-  const { data: ann, error } = await supabase
-    .from("Announcement")
-    .insert({
-      id: generateId(),
-      institutionId: data.institutionId,
-      publishedBy: data.publishedBy,
-      title: data.title,
-      content: data.content ?? null,
+  const ann = await db.announcement.create({
+    data: {
+      institutionId: caller.institutionId,
+      publishedBy: caller.profileId,
+      title: input.title,
+      content: input.content ?? null,
       isPublished: false,
       targetAudience: ["all"],
-    })
-    .select("id, title, content, isPublished, createdAt")
-    .single();
+    },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      isPublished: true,
+      createdAt: true,
+    },
+  });
 
-  if (error) throw new Error(error.message);
   revalidatePath("/institution");
-  return ann;
+  return { ...ann, createdAt: ann.createdAt.toISOString() };
 }
 
 export async function toggleAnnouncement(id: string, current: boolean) {
-  const supabase = createAdminClient();
-  const update = current
-    ? { isPublished: false, publishedAt: null }
-    : { isPublished: true, publishedAt: new Date().toISOString() };
-  const { error } = await supabase
-    .from("Announcement")
-    .update(update)
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  const caller = await requireInstitution();
+  parse(idSchema, id);
+  parse(flagSchema, current);
+  const row = await loadOwnedAnnouncement(id, caller);
+
+  await db.announcement.update({
+    where: { id },
+    data: row.isPublished
+      ? { isPublished: false, publishedAt: null }
+      : { isPublished: true, publishedAt: new Date() },
+  });
+
   revalidatePath("/institution");
 }
 
 export async function deleteAnnouncement(id: string) {
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("Announcement").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const caller = await requireInstitution();
+  parse(idSchema, id);
+  await loadOwnedAnnouncement(id, caller);
+
+  await db.announcement.delete({ where: { id } });
   revalidatePath("/institution");
 }
 
 // ── Institution profile ───────────────────────────────────────────────────
 
-export async function updateInstitutionProfile(
-  id: string,
-  data: {
-    name?: string;
-    description?: string;
-    website?: string;
-    email?: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    country?: string;
-  },
-) {
-  const supabase = createAdminClient();
-  const { error } = await supabase
-    .from("Institution")
-    .update({
-      ...(data.name && { name: data.name }),
-      ...(data.description !== undefined && { description: data.description }),
-      ...(data.website !== undefined && { website: data.website }),
-      ...(data.email !== undefined && { email: data.email }),
-      ...(data.phone !== undefined && { phone: data.phone }),
-      ...(data.address !== undefined && { address: data.address }),
-      ...(data.city !== undefined && { city: data.city }),
-      ...(data.country && { country: data.country }),
-    })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+export async function updateInstitutionProfile(data: {
+  name?: string;
+  description?: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+}) {
+  const caller = await requireInstitution();
+  const input = parse(institutionProfileSchema, data);
+
+  await db.institution.update({
+    where: { id: caller.institutionId },
+    data: {
+      ...(input.name && { name: input.name }),
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
+      ...(input.website !== undefined && { website: input.website }),
+      ...(input.email !== undefined && { email: input.email }),
+      ...(input.phone !== undefined && { phone: input.phone }),
+      ...(input.address !== undefined && { address: input.address }),
+      ...(input.city !== undefined && { city: input.city }),
+      ...(input.country && { country: input.country }),
+    },
+  });
+
   revalidatePath("/institution");
 }

@@ -19,6 +19,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatFileSize } from "~/lib/courseStorage";
+import { toPriceNumber } from "~/lib/pricing";
 
 interface Resource {
   id: string;
@@ -154,9 +155,14 @@ export default function StudentCourseView({ course, sections, enrolledStudents =
                   </span>
                 </div>
               )}
-              {course.localPrice && (
+              {toPriceNumber(course.localPrice) !== null && (
                 <div className="flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-1.5">
-                  <span className="text-sm font-medium text-blue-700">LKR {Number(course.localPrice).toLocaleString()}</span>
+                  <span className="text-sm font-medium text-blue-700">LKR {toPriceNumber(course.localPrice)?.toLocaleString()}</span>
+                </div>
+              )}
+              {toPriceNumber(course.foreignPrice) !== null && (
+                <div className="flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-1.5">
+                  <span className="text-sm font-medium text-blue-700">USD {toPriceNumber(course.foreignPrice)?.toLocaleString()}</span>
                 </div>
               )}
             </div>

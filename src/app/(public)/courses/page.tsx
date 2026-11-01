@@ -7,6 +7,7 @@ import {
   Users, ChevronRight, Loader2, SlidersHorizontal, X,
 } from "lucide-react";
 import { api } from "~/trpc/react";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 export default function PublicCoursesPage() {
   const router = useRouter();
@@ -19,8 +20,8 @@ export default function PublicCoursesPage() {
   }, { staleTime: 60_000 });
 
   const filteredCourses = courses.filter((c) => {
-    if (priceFilter === "Free") return !c.localPrice || Number(c.localPrice) === 0;
-    if (priceFilter === "Paid") return c.localPrice && Number(c.localPrice) > 0;
+    if (priceFilter === "Free") return isFreePricing(c.localPrice, c.foreignPrice);
+    if (priceFilter === "Paid") return !isFreePricing(c.localPrice, c.foreignPrice);
     return true;
   });
 
@@ -364,10 +365,14 @@ export default function PublicCoursesPage() {
 
                       {/* Price */}
                       <p className="font-display mb-4 text-sm font-bold" style={{ color: "#F5F5F0" }}>
-                        {!course.localPrice || Number(course.localPrice) === 0 ? (
+                        {isFreePricing(course.localPrice, course.foreignPrice) ? (
                           <span style={{ color: "#22C55E" }}>Free</span>
                         ) : (
-                          <>LKR {Number(course.localPrice).toLocaleString()}</>
+                          <>
+                            {toPriceNumber(course.localPrice) !== null
+                              ? `LKR ${toPriceNumber(course.localPrice)?.toLocaleString()}`
+                              : `USD ${toPriceNumber(course.foreignPrice)?.toLocaleString()}`}
+                          </>
                         )}
                       </p>
 

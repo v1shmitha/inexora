@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { uploadCourseResource, detectResourceType, formatFileSize } from "~/lib/courseStorage";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 import ContentTab from "~/app/dashboard/lecturer/_components/ContentTab";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -247,9 +248,14 @@ export default function CourseDetailPage() {
                     }`}>
                       {course.isPublished ? "Published" : "Draft"}
                     </span>
-                    {course.localPrice && (
+                    {toPriceNumber(course.localPrice) !== null && (
                       <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                        <DollarSign className="h-3 w-3" />LKR {Number(course.localPrice).toLocaleString()}
+                        <DollarSign className="h-3 w-3" />LKR {toPriceNumber(course.localPrice)?.toLocaleString()}
+                      </span>
+                    )}
+                    {toPriceNumber(course.foreignPrice) !== null && (
+                      <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
+                        <DollarSign className="h-3 w-3" />USD {toPriceNumber(course.foreignPrice)?.toLocaleString()}
                       </span>
                     )}
                   </div>
@@ -366,21 +372,21 @@ export default function CourseDetailPage() {
                     <p className="text-sm italic text-slate-400">No description yet. Click Edit to add one.</p>
                   )}
                   <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-50 pt-5">
-                    {course.localPrice ? (
+                    {toPriceNumber(course.localPrice) !== null ? (
                       <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
                         <p className="text-xs text-slate-400">Local Price</p>
-                        <p className="mt-0.5 text-base font-bold text-slate-900">LKR {Number(course.localPrice).toLocaleString()}</p>
+                        <p className="mt-0.5 text-base font-bold text-slate-900">LKR {toPriceNumber(course.localPrice)?.toLocaleString()}</p>
                       </div>
-                    ) : (
+                    ) : isFreePricing(course.localPrice, course.foreignPrice) ? (
                       <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-center">
                         <p className="text-xs text-green-600">Enrollment</p>
                         <p className="mt-0.5 text-base font-bold text-green-700">Free</p>
                       </div>
-                    )}
-                    {course.foreignPrice && (
+                    ) : null}
+                    {toPriceNumber(course.foreignPrice) !== null && (
                       <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
                         <p className="text-xs text-slate-400">Foreign Price</p>
-                        <p className="mt-0.5 text-base font-bold text-slate-900">USD {Number(course.foreignPrice).toLocaleString()}</p>
+                        <p className="mt-0.5 text-base font-bold text-slate-900">USD {toPriceNumber(course.foreignPrice)?.toLocaleString()}</p>
                       </div>
                     )}
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">

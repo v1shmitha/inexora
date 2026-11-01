@@ -2,6 +2,7 @@
 
 import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 import {
   Building2,
   Clock,
@@ -550,20 +551,22 @@ export default function PublicProgramDetailPage({
                 borderColor: "rgba(34,197,94,0.22)",
               }}
             >
-              {program.localPrice ? (
+              {!isFreePricing(program.localPrice, program.foreignPrice) ? (
                 <div className="mb-5">
                   <p
                     className="font-display text-2xl font-bold"
                     style={{ color: "#F5F5F0" }}
                   >
-                    LKR {Number(program.localPrice).toLocaleString()}
+                    {toPriceNumber(program.localPrice) !== null
+                      ? `LKR ${toPriceNumber(program.localPrice)?.toLocaleString()}`
+                      : `USD ${toPriceNumber(program.foreignPrice)?.toLocaleString()}`}
                   </p>
-                  {program.foreignPrice && (
+                  {toPriceNumber(program.localPrice) !== null && toPriceNumber(program.foreignPrice) !== null && (
                     <p
                       className="font-body mt-1 text-sm"
                       style={{ color: "rgba(136,153,187,0.45)" }}
                     >
-                      USD {Number(program.foreignPrice).toLocaleString()} for
+                      USD {toPriceNumber(program.foreignPrice)?.toLocaleString()} for
                       international students
                     </p>
                   )}
