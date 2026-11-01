@@ -212,12 +212,15 @@ describe("institution actions: ownership", () => {
     expectNoSideEffects();
   });
 
-  it.each(ID_CASES)("%s gives the same error for a missing row", async (_n, run) => {
-    mocks.programFindUnique.mockResolvedValue(null);
-    mocks.announcementFindUnique.mockResolvedValue(null);
-    await expect(run()).rejects.toThrow("Not found");
-    expectNoSideEffects();
-  });
+  it.each(ID_CASES)(
+    "%s gives the same error for a missing row",
+    async (_n, run) => {
+      mocks.programFindUnique.mockResolvedValue(null);
+      mocks.announcementFindUnique.mockResolvedValue(null);
+      await expect(run()).rejects.toThrow("Not found");
+      expectNoSideEffects();
+    },
+  );
 
   it("looks the target up by id only", async () => {
     await actions.toggleProgram("pr1", false);
@@ -309,16 +312,20 @@ describe("institution actions: validation", () => {
     ["empty program id", () => actions.updateProgram("", {})],
     ["empty toggle program id", () => actions.toggleProgram("", true)],
     ["empty delete program id", () => actions.deleteProgram("")],
-    ["empty toggle announcement id", () => actions.toggleAnnouncement("", true)],
+    [
+      "empty toggle announcement id",
+      () => actions.toggleAnnouncement("", true),
+    ],
     ["empty delete announcement id", () => actions.deleteAnnouncement("")],
     [
       "bad enum",
       () => actions.createProgram({ ...validProgram, type: "NOPE" }),
     ],
     [
-      "bad update enum",
-      () => actions.updateProgram("pr1", { level: "NOPE" }),
+      "bad field enum",
+      () => actions.createProgram({ ...validProgram, field: "NOPE" }),
     ],
+    ["bad update enum", () => actions.updateProgram("pr1", { level: "NOPE" })],
     [
       "blank title",
       () => actions.createProgram({ ...validProgram, title: "   " }),
@@ -331,7 +338,10 @@ describe("institution actions: validation", () => {
       "non-integer duration",
       () => actions.createProgram({ ...validProgram, durationMonths: 1.5 }),
     ],
-    ["blank announcement title", () => actions.createAnnouncement({ title: "" })],
+    [
+      "blank announcement title",
+      () => actions.createAnnouncement({ title: "" }),
+    ],
     [
       "bad email",
       () => actions.updateInstitutionProfile({ email: "not-an-email" }),
@@ -398,18 +408,21 @@ describe("institution actions: programs", () => {
   it.each([
     [false, true],
     [true, false],
-  ])("toggleProgram derives the new state from the DB row (stored %s)", async (stored, expected) => {
-    mocks.programFindUnique.mockResolvedValue({
-      institutionId: "inst1",
-      isPublished: stored,
-    });
-    // client claims the opposite of the stored state
-    await actions.toggleProgram("pr1", !stored);
-    expect(mocks.programUpdate).toHaveBeenCalledWith({
-      where: { id: "pr1" },
-      data: { isPublished: expected },
-    });
-  });
+  ])(
+    "toggleProgram derives the new state from the DB row (stored %s)",
+    async (stored, expected) => {
+      mocks.programFindUnique.mockResolvedValue({
+        institutionId: "inst1",
+        isPublished: stored,
+      });
+      // client claims the opposite of the stored state
+      await actions.toggleProgram("pr1", !stored);
+      expect(mocks.programUpdate).toHaveBeenCalledWith({
+        where: { id: "pr1" },
+        data: { isPublished: expected },
+      });
+    },
+  );
 });
 
 describe("institution actions: deleteProgram", () => {

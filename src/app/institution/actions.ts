@@ -2,11 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { DeliveryMode, ProgramLevel, ProgramType } from "@prisma/client";
+import {
+  DeliveryMode,
+  ProgramField,
+  ProgramLevel,
+  ProgramType,
+} from "@prisma/client";
 import { createAdminClient } from "~/lib/supabase/admin";
-import { createClient  } from "~/lib/supabase/server";
+import { createClient } from "~/lib/supabase/server";
 import { priceUsdFields } from "~/lib/pricing";
-import { requireInstitution, type InstitutionCaller } from "~/server/auth/institution";
+import {
+  requireInstitution,
+  type InstitutionCaller,
+} from "~/server/auth/institution";
 import { db } from "~/server/db";
 
 // Non-async exports are not allowed in a "use server" file, so these
@@ -26,7 +34,7 @@ const createProgramSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   type: z.nativeEnum(ProgramType),
   level: z.nativeEnum(ProgramLevel),
-  field: z.literal("OTHER"),
+  field: z.nativeEnum(ProgramField),
   deliveryMode: z.nativeEnum(DeliveryMode),
   durationMonths: z.number().int().positive().optional(),
   description: z.string().optional(),
@@ -155,7 +163,11 @@ export async function createProgram(data: {
   });
 
   revalidatePath("/institution");
-  return { ...program, createdAt: program.createdAt.toISOString(), courses: [] };
+  return {
+    ...program,
+    createdAt: program.createdAt.toISOString(),
+    courses: [],
+  };
 }
 
 export async function updateProgram(
@@ -236,7 +248,9 @@ export async function deleteProgram(id: string) {
     }
 
     await tx.assessment.deleteMany({ where: { course: { programId: id } } });
-    await tx.courseLecturer.deleteMany({ where: { course: { programId: id } } });
+    await tx.courseLecturer.deleteMany({
+      where: { course: { programId: id } },
+    });
     await tx.course.deleteMany({ where: { programId: id } });
     await tx.announcement.deleteMany({ where: { programId: id } });
     await tx.program.delete({ where: { id } });
@@ -249,11 +263,11 @@ export async function deleteProgram(id: string) {
 
 async function getCurrentUser() {
   const supabase = await createClient(); // Remove await - createAdminClient is not async
-  
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  
+
   if (!user) throw new Error("Unauthorized");
 
   const { data: profile } = await supabase
@@ -272,7 +286,7 @@ async function getCurrentUser() {
       .select("id")
       .eq("profileId", profile.id)
       .single();
-    
+
     lecturerId = lecturer?.id ?? null;
   }
 
@@ -284,7 +298,7 @@ async function getCurrentUser() {
 
 export async function approveLecturer(lecturerId: string) {
   const user = await getCurrentUser();
-  
+
   const lecturer = await db.lecturer.findUnique({
     where: { id: lecturerId },
   });
@@ -308,8 +322,8 @@ export async function approveLecturer(lecturerId: string) {
     const account = await db.institutionAccount.findFirst({
       where: {
         profileId: user.id,
-        institutionId: lecturer.institutionId
-      }
+        institutionId: lecturer.institutionId,
+      },
     });
 
     if (!account) {
@@ -330,9 +344,9 @@ export async function approveLecturer(lecturerId: string) {
 
 export async function rejectLecturer(lecturerId: string) {
   const user = await getCurrentUser();
-  
+
   const lecturer = await db.lecturer.findUnique({
-    where: { id: lecturerId }
+    where: { id: lecturerId },
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
@@ -342,7 +356,7 @@ export async function rejectLecturer(lecturerId: string) {
   if (user.role === "ADMIN") {
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "REJECTED" }
+      data: { approvalStatus: "REJECTED" },
     });
     revalidatePath("/admin");
     revalidatePath("/institution");
@@ -354,8 +368,8 @@ export async function rejectLecturer(lecturerId: string) {
     const account = await db.institutionAccount.findFirst({
       where: {
         profileId: user.id,
-        institutionId: lecturer.institutionId
-      }
+        institutionId: lecturer.institutionId,
+      },
     });
 
     if (!account) {
@@ -364,7 +378,7 @@ export async function rejectLecturer(lecturerId: string) {
 
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "REJECTED" }
+      data: { approvalStatus: "REJECTED" },
     });
 
     revalidatePath("/institution");
@@ -376,9 +390,9 @@ export async function rejectLecturer(lecturerId: string) {
 
 export async function reApproveLecturer(lecturerId: string) {
   const user = await getCurrentUser();
-  
+
   const lecturer = await db.lecturer.findUnique({
-    where: { id: lecturerId }
+    where: { id: lecturerId },
   });
 
   if (!lecturer) throw new Error("Lecturer not found");
@@ -392,7 +406,7 @@ export async function reApproveLecturer(lecturerId: string) {
   if (user.role === "ADMIN") {
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "APPROVED" }
+      data: { approvalStatus: "APPROVED" },
     });
     revalidatePath("/admin");
     revalidatePath("/institution");
@@ -404,8 +418,8 @@ export async function reApproveLecturer(lecturerId: string) {
     const account = await db.institutionAccount.findFirst({
       where: {
         profileId: user.id,
-        institutionId: lecturer.institutionId
-      }
+        institutionId: lecturer.institutionId,
+      },
     });
 
     if (!account) {
@@ -414,7 +428,7 @@ export async function reApproveLecturer(lecturerId: string) {
 
     await db.lecturer.update({
       where: { id: lecturerId },
-      data: { approvalStatus: "APPROVED" }
+      data: { approvalStatus: "APPROVED" },
     });
 
     revalidatePath("/institution");
@@ -620,7 +634,9 @@ export async function updateInstitutionProfile(data: {
     where: { id: caller.institutionId },
     data: {
       ...(input.name && { name: input.name }),
-      ...(input.description !== undefined && { description: input.description }),
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
       ...(input.website !== undefined && { website: input.website }),
       ...(input.email !== undefined && { email: input.email }),
       ...(input.phone !== undefined && { phone: input.phone }),
