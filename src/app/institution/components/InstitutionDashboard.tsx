@@ -306,7 +306,6 @@ export default function InstitutionDashboard({
     setProgramFormError(null);
     try {
       const newProgram = await createProgram({
-        institutionId: institution.id,
         title: programForm.title,
         type: programForm.type,
         level: programForm.level,
@@ -385,8 +384,6 @@ export default function InstitutionDashboard({
     setAnnouncementError(null);
     try {
       const newAnn = await createAnnouncement({
-        institutionId: institution.id,
-        publishedBy: profile.id,
         title: announcementForm.title,
         content: announcementForm.content || undefined,
       });
@@ -494,7 +491,7 @@ export default function InstitutionDashboard({
     setProfileError(null);
     setProfileSuccess(false);
     try {
-      await updateInstitutionProfile(institution.id, {
+      await updateInstitutionProfile({
         name: profileForm.name,
         description: profileForm.description || undefined,
         website: profileForm.website || undefined,
