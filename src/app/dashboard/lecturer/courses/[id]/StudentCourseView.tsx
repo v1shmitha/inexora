@@ -159,6 +159,11 @@ export default function StudentCourseView({ course, sections, enrolledStudents =
                   <span className="text-sm font-medium text-blue-700">LKR {Number(course.localPrice).toLocaleString()}</span>
                 </div>
               )}
+              {course.foreignPrice && (
+                <div className="flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-1.5">
+                  <span className="text-sm font-medium text-blue-700">USD {Number(course.foreignPrice).toLocaleString()}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

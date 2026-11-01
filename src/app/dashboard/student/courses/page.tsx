@@ -10,6 +10,7 @@ import { createClient } from "~/lib/supabase/client";
 import Button from "~/app/components/ui/Button";
 import Badge from "~/app/components/ui/Badge";
 import EmptyState from "~/app/components/ui/EmptyState";
+import { isFreePricing } from "~/lib/pricing";
 
 interface Course {
   id: string;
@@ -78,8 +79,8 @@ export default function CoursesPage() {
       (c.createdBy?.profile?.fullName?.toLowerCase().includes(q) ?? false);
     const matchPrice =
       priceFilter === "All" ||
-      (priceFilter === "Free" && (!c.localPrice || c.localPrice === 0)) ||
-      (priceFilter === "Paid" && c.localPrice && c.localPrice > 0);
+      (priceFilter === "Free" && isFreePricing(c.localPrice, c.foreignPrice)) ||
+      (priceFilter === "Paid" && !isFreePricing(c.localPrice, c.foreignPrice));
     return matchSearch && matchPrice;
   });
 
@@ -149,7 +150,7 @@ export default function CoursesPage() {
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
             {filtered.map((course) => {
-              const isFree = !course.localPrice || course.localPrice === 0;
+              const isFree = isFreePricing(course.localPrice, course.foreignPrice);
               const instructor = course.createdBy;
               const instructorName = instructor?.profile?.fullName
                 ? `${instructor.title ? `${instructor.title} ` : ""}${instructor.profile.fullName}`
@@ -194,9 +195,11 @@ export default function CoursesPage() {
                       ) : (
                         <div>
                           <p className="text-sm font-bold text-slate-900">
-                            LKR {course.localPrice?.toLocaleString()}
+                            {course.localPrice
+                              ? `LKR ${course.localPrice.toLocaleString()}`
+                              : `USD ${course.foreignPrice?.toLocaleString()}`}
                           </p>
-                          {course.foreignPrice && (
+                          {course.localPrice && course.foreignPrice && (
                             <p className="text-xs text-slate-400">
                               USD {course.foreignPrice.toLocaleString()}
                             </p>

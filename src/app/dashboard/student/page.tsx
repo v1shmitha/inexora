@@ -11,7 +11,9 @@ import { api } from "~/trpc/react";
 import Button from "~/app/components/ui/Button";
 import Badge from "~/app/components/ui/Badge";
 import EmptyState from "~/app/components/ui/EmptyState";
+import Card from "~/app/components/ui/Card";
 import ProgressBar from "~/app/components/ui/ProgressBar";
+import AnnouncementList from "~/app/dashboard/student/_components/AnnouncementList";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -252,6 +254,11 @@ export default function MyLearningPage() {
         {/* Profile completion banner / recommendations CTA */}
         <ProfileCompletionBanner profileStatus={profileStatus} isLoading={profileStatusLoading} />
         <RecommendationsCTA profileStatus={profileStatus} isLoading={profileStatusLoading} />
+
+        {/* Announcements */}
+        <Card title="Announcements" className="mb-6">
+          <AnnouncementList limit={5} />
+        </Card>
 
         {/* Content type toggle */}
         <div className="mb-6 flex items-center gap-3">

@@ -8,6 +8,7 @@ import {
   Trash2, ArrowRight,
 } from "lucide-react";
 import { api } from "~/trpc/react";
+import { isFreePricing } from "~/lib/pricing";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -282,11 +283,11 @@ export default function CoursesPage() {
                         <DollarSign className="h-3 w-3" />
                         LKR {Number(course.localPrice).toLocaleString()}
                       </span>
-                    ) : (
+                    ) : isFreePricing(course.localPrice, course.foreignPrice) ? (
                       <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                         Free
                       </span>
-                    )}
+                    ) : null}
                     {course.foreignPrice && (
                       <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
                         <Globe className="h-3 w-3" />

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { chargeFor, isFreePricing } from "~/lib/pricing";
 
 // ── Helper ─────────────────────────────────────────────────────────────────
 async function getStudent(db: any, profileId: string) {
@@ -99,6 +100,72 @@ export const enrollmentRouter = createTRPCRouter({
     }));
   }),
 
+  // ── GET: announcements relevant to the current student ───────────────
+  getMyAnnouncements: protectedProcedure
+    .input(
+      z
+        .object({ limit: z.number().int().min(1).max(50).default(10) })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.profile.role !== "STUDENT")
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only students can view announcements.",
+        });
+      const student = (await getStudent(ctx.db, ctx.profile.id)) as {
+        id: string;
+      };
+
+      const enrollments = await ctx.db.enrollment.findMany({
+        where: {
+          studentId: student.id,
+          status: { in: ["ACTIVE", "APPROVED", "COMPLETED"] },
+        },
+        select: {
+          programId: true,
+          program: { select: { institutionId: true } },
+        },
+      });
+      const programIds = [...new Set(enrollments.map((e) => e.programId))];
+      const institutionIds = [
+        ...new Set(
+          enrollments
+            .map((e) => e.program?.institutionId)
+            .filter((id): id is string => !!id),
+        ),
+      ];
+
+      const now = new Date();
+      return ctx.db.announcement.findMany({
+        where: {
+          isPublished: true,
+          targetAudience: { hasSome: ["all", "students"] },
+          AND: [
+            { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+            {
+              OR: [
+                { institutionId: null, programId: null },
+                { institutionId: { in: institutionIds } },
+                { programId: { in: programIds } },
+              ],
+            },
+          ],
+        },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+        take: input?.limit ?? 10,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          publishedAt: true,
+          createdAt: true,
+          institution: { select: { name: true } },
+          program: { select: { title: true } },
+        },
+      });
+    }),
+
   // ── Enroll in a program ──────────────────────────────────────────────
   enrollInProgram: protectedProcedure
     .input(z.object({ programId: z.string() }))
@@ -143,7 +210,8 @@ export const enrollmentRouter = createTRPCRouter({
         select: { id: true },
       });
 
-      const isFree = !program.localPrice || Number(program.localPrice) === 0;
+      const charge = chargeFor(program.localPrice, program.foreignPrice);
+      const isFree = isFreePricing(program.localPrice, program.foreignPrice);
 
       if (isFree) {
         const enrollment = await ctx.db.enrollment.create({
@@ -175,8 +243,8 @@ export const enrollmentRouter = createTRPCRouter({
       const payment = await ctx.db.payment.create({
         data: {
           profileId: ctx.profile.id,
-          amount: program.localPrice!,
-          currency: "LKR",
+          amount: charge!.amount,
+          currency: charge!.currency,
           paymentType: "TUITION",
           paymentMethod: "STRIPE",
           status: "PENDING",
@@ -210,8 +278,8 @@ export const enrollmentRouter = createTRPCRouter({
         type: "payment_required" as const,
         enrollmentId: enrollment.id,
         paymentId: payment.id,
-        amount: Number(program.localPrice),
-        currency: "LKR",
+        amount: charge!.amount,
+        currency: charge!.currency,
         programTitle: program.title,
       };
     }),
@@ -251,7 +319,8 @@ export const enrollmentRouter = createTRPCRouter({
           message: "Course is not available for enrollment",
         });
 
-      const isFree = !course.localPrice || Number(course.localPrice) === 0;
+      const charge = chargeFor(course.localPrice, course.foreignPrice);
+      const isFree = isFreePricing(course.localPrice, course.foreignPrice);
 
       if (isFree) {
         const courseEnrollment = await ctx.db.courseEnrollment.create({
@@ -268,8 +337,8 @@ export const enrollmentRouter = createTRPCRouter({
       const payment = await ctx.db.payment.create({
         data: {
           profileId: ctx.profile.id,
-          amount: course.localPrice!,
-          currency: "LKR",
+          amount: charge!.amount,
+          currency: charge!.currency,
           paymentType: "TUITION",
           paymentMethod: "STRIPE",
           status: "PENDING",
@@ -279,8 +348,8 @@ export const enrollmentRouter = createTRPCRouter({
       return {
         type: "payment_required" as const,
         paymentId: payment.id,
-        amount: Number(course.localPrice),
-        currency: "LKR",
+        amount: charge!.amount,
+        currency: charge!.currency,
         courseTitle: course.title,
       };
     }),

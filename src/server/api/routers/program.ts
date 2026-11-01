@@ -223,7 +223,7 @@ export const programRouter = createTRPCRouter({
 
       return db.program.update({
         where: { id: input.id },
-        data: { ...input.data, approvalStatus: newApprovalStatus, ...priceUsdFields(input.data.foreignPrice) },
+        data: { ...input.data, approvalStatus: newApprovalStatus, ...(input.data.foreignPrice !== undefined ? priceUsdFields(input.data.foreignPrice) : {}) },
       });
     }),
 

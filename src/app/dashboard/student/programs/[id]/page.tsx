@@ -11,6 +11,7 @@ import {
 import { createClient } from "~/lib/supabase/client";
 import { api } from "~/trpc/react";
 import Button from "~/app/components/ui/Button";
+import { isFreePricing } from "~/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export default function StudentProgramDetailPage() {
         await utils.enrollment.checkProgramEnrollment.invalidate({ programId: id });
         setEnrolling(false);
       } else if (data.type === "payment_required") {
-        router.push(`/payment?enrollmentId=${data.enrollmentId}&paymentId=${data.paymentId}&amount=${data.amount}&title=${encodeURIComponent(data.programTitle ?? "")}`);
+        router.push(`/payment?enrollmentId=${data.enrollmentId}&paymentId=${data.paymentId}&amount=${data.amount}&currency=${data.currency}&title=${encodeURIComponent(data.programTitle ?? "")}`);
       }
     },
     onError: (e) => { setEnrollError(e.message); setEnrolling(false); },
@@ -186,7 +187,7 @@ export default function StudentProgramDetailPage() {
     );
   }
 
-  const isFree = !program.localPrice || program.localPrice === 0;
+  const isFree = isFreePricing(program.localPrice, program.foreignPrice);
   const mandatoryCount = program.courses.filter((c) => c.isMandatory).length;
   const electiveCount  = program.courses.length - mandatoryCount;
   const completedCount = moduleStatuses.filter((m) => m.status === "COMPLETED").length;
@@ -295,9 +296,11 @@ export default function StudentProgramDetailPage() {
                   ) : (
                     <div>
                       <span className="text-3xl font-black text-slate-900">
-                        LKR {program.localPrice?.toLocaleString()}
+                        {program.localPrice
+                          ? `LKR ${program.localPrice.toLocaleString()}`
+                          : `USD ${program.foreignPrice?.toLocaleString()}`}
                       </span>
-                      {program.foreignPrice && (
+                      {program.localPrice && program.foreignPrice && (
                         <p className="mt-0.5 text-sm text-slate-400">
                           USD {program.foreignPrice.toLocaleString()} for international students
                         </p>

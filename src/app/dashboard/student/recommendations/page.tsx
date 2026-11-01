@@ -8,6 +8,7 @@ import { api } from "~/trpc/react";
 import Button from "~/app/components/ui/Button";
 import Badge from "~/app/components/ui/Badge";
 import EmptyState from "~/app/components/ui/EmptyState";
+import { isFreePricing } from "~/lib/pricing";
 
 const LEVEL_COLORS: Record<string, string> = {
   ENTRY:          "bg-green-100 text-green-700",
@@ -153,12 +154,14 @@ export default function RecommendationsPage() {
 
                   <div className="mt-auto flex items-center justify-between border-t border-slate-100 px-5 py-4">
                     <div>
-                      {program.localPrice && Number(program.localPrice) > 0 ? (
+                      {!isFreePricing(program.localPrice, program.foreignPrice) ? (
                         <div>
                           <p className="text-base font-bold text-slate-900">
-                            LKR {Number(program.localPrice).toLocaleString()}
+                            {program.localPrice
+                              ? `LKR ${Number(program.localPrice).toLocaleString()}`
+                              : `USD ${Number(program.foreignPrice).toLocaleString()}`}
                           </p>
-                          {program.foreignPrice && (
+                          {program.localPrice && program.foreignPrice && (
                             <p className="text-xs text-slate-400">
                               USD {Number(program.foreignPrice).toLocaleString()}
                             </p>

@@ -26,6 +26,7 @@ import Select from "~/app/components/ui/Select";
 import Badge from "~/app/components/ui/Badge";
 import StatusPill from "~/app/components/ui/StatusPill";
 import ProgressBar from "~/app/components/ui/ProgressBar";
+import AnnouncementList from "~/app/dashboard/student/_components/AnnouncementList";
 
 // ── Journey stages ────────────────────────────────────────────────────────
 
@@ -612,9 +613,9 @@ export default function StudentProfilePage() {
               )}
             </Card>
 
-            {/* Announcements placeholder — no announcements-for-student query exists yet */}
+            {/* Announcements */}
             <Card title="Announcements">
-              <p className="text-sm text-slate-400">No announcements to show right now.</p>
+              <AnnouncementList />
             </Card>
 
             {/* Sharing & visibility */}

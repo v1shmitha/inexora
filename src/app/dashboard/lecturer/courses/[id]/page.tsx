@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { uploadCourseResource, detectResourceType, formatFileSize } from "~/lib/courseStorage";
+import { isFreePricing } from "~/lib/pricing";
 import ContentTab from "~/app/dashboard/lecturer/_components/ContentTab";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -252,6 +253,11 @@ export default function CourseDetailPage() {
                         <DollarSign className="h-3 w-3" />LKR {Number(course.localPrice).toLocaleString()}
                       </span>
                     )}
+                    {course.foreignPrice && (
+                      <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
+                        <DollarSign className="h-3 w-3" />USD {Number(course.foreignPrice).toLocaleString()}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -371,12 +377,12 @@ export default function CourseDetailPage() {
                         <p className="text-xs text-slate-400">Local Price</p>
                         <p className="mt-0.5 text-base font-bold text-slate-900">LKR {Number(course.localPrice).toLocaleString()}</p>
                       </div>
-                    ) : (
+                    ) : isFreePricing(course.localPrice, course.foreignPrice) ? (
                       <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-center">
                         <p className="text-xs text-green-600">Enrollment</p>
                         <p className="mt-0.5 text-base font-bold text-green-700">Free</p>
                       </div>
-                    )}
+                    ) : null}
                     {course.foreignPrice && (
                       <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
                         <p className="text-xs text-slate-400">Foreign Price</p>

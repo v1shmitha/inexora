@@ -10,6 +10,7 @@ import {
 import { createClient } from "~/lib/supabase/client";
 import { api } from "~/trpc/react";
 import Button from "~/app/components/ui/Button";
+import { isFreePricing } from "~/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export default function StudentCourseDetailPage() {
         await utils.enrollment.checkCourseEnrollment.invalidate({ courseId: id });
         setEnrolling(false);
       } else if (data.type === "payment_required") {
-        router.push(`/payment?paymentId=${data.paymentId}&amount=${data.amount}&title=${encodeURIComponent(data.courseTitle ?? "")}`);
+        router.push(`/payment?paymentId=${data.paymentId}&amount=${data.amount}&currency=${data.currency}&title=${encodeURIComponent(data.courseTitle ?? "")}`);
       }
     },
     onError: (e) => { setEnrollError(e.message); setEnrolling(false); },
@@ -164,7 +165,7 @@ export default function StudentCourseDetailPage() {
     );
   }
 
-  const isFree          = !course.localPrice || course.localPrice === 0;
+  const isFree          = isFreePricing(course.localPrice, course.foreignPrice);
   const totalResources  = course.sections.reduce((s, sec) => s + sec.resources.length, 0);
   const totalMins       = course.sections.reduce(
     (s, sec) => s + sec.resources.reduce((rs, r) => rs + (r.durationMins ?? 0), 0), 0,
@@ -248,9 +249,11 @@ export default function StudentCourseDetailPage() {
                   ) : (
                     <div>
                       <span className="text-3xl font-black text-slate-900">
-                        LKR {course.localPrice?.toLocaleString()}
+                        {course.localPrice
+                          ? `LKR ${course.localPrice.toLocaleString()}`
+                          : `USD ${course.foreignPrice?.toLocaleString()}`}
                       </span>
-                      {course.foreignPrice && (
+                      {course.localPrice && course.foreignPrice && (
                         <p className="mt-0.5 text-sm text-slate-400">
                           USD {course.foreignPrice.toLocaleString()} for international students
                         </p>

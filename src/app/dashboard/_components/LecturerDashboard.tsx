@@ -1376,6 +1376,11 @@ export default function LecturerDashboard() {
                                         LKR {course.localPrice.toLocaleString()}
                                       </span>
                                     )}
+                                    {course.foreignPrice && (
+                                      <span>
+                                        USD {course.foreignPrice.toLocaleString()}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
