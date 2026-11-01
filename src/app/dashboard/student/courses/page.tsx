@@ -10,7 +10,7 @@ import { createClient } from "~/lib/supabase/client";
 import Button from "~/app/components/ui/Button";
 import Badge from "~/app/components/ui/Badge";
 import EmptyState from "~/app/components/ui/EmptyState";
-import { isFreePricing } from "~/lib/pricing";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 interface Course {
   id: string;
@@ -195,13 +195,13 @@ export default function CoursesPage() {
                       ) : (
                         <div>
                           <p className="text-sm font-bold text-slate-900">
-                            {course.localPrice
-                              ? `LKR ${course.localPrice.toLocaleString()}`
-                              : `USD ${course.foreignPrice?.toLocaleString()}`}
+                            {toPriceNumber(course.localPrice) !== null
+                              ? `LKR ${toPriceNumber(course.localPrice)?.toLocaleString()}`
+                              : `USD ${toPriceNumber(course.foreignPrice)?.toLocaleString()}`}
                           </p>
-                          {course.localPrice && course.foreignPrice && (
+                          {toPriceNumber(course.localPrice) !== null && toPriceNumber(course.foreignPrice) !== null && (
                             <p className="text-xs text-slate-400">
-                              USD {course.foreignPrice.toLocaleString()}
+                              USD {toPriceNumber(course.foreignPrice)?.toLocaleString()}
                             </p>
                           )}
                         </div>

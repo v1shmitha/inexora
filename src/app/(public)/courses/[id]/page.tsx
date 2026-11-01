@@ -7,7 +7,7 @@ import {
   ArrowLeft, Loader2, Users, Calendar,
 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { isFreePricing } from "~/lib/pricing";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 export default function PublicCourseDetailPage({
   params,
@@ -299,13 +299,13 @@ export default function PublicCourseDetailPage({
               {!isFreePricing(course.localPrice, course.foreignPrice) ? (
                 <div className="mb-5">
                   <p className="font-display text-2xl font-bold" style={{ color: "#F5F5F0" }}>
-                    {course.localPrice
-                      ? `LKR ${Number(course.localPrice).toLocaleString()}`
-                      : `USD ${Number(course.foreignPrice).toLocaleString()}`}
+                    {toPriceNumber(course.localPrice) !== null
+                      ? `LKR ${toPriceNumber(course.localPrice)?.toLocaleString()}`
+                      : `USD ${toPriceNumber(course.foreignPrice)?.toLocaleString()}`}
                   </p>
-                  {course.localPrice && course.foreignPrice && (
+                  {toPriceNumber(course.localPrice) !== null && toPriceNumber(course.foreignPrice) !== null && (
                     <p className="font-body mt-1 text-sm" style={{ color: "rgba(136,153,187,0.45)" }}>
-                      USD {Number(course.foreignPrice).toLocaleString()} for international students
+                      USD {toPriceNumber(course.foreignPrice)?.toLocaleString()} for international students
                     </p>
                   )}
                 </div>

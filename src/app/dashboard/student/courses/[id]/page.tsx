@@ -10,7 +10,7 @@ import {
 import { createClient } from "~/lib/supabase/client";
 import { api } from "~/trpc/react";
 import Button from "~/app/components/ui/Button";
-import { isFreePricing } from "~/lib/pricing";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -249,13 +249,13 @@ export default function StudentCourseDetailPage() {
                   ) : (
                     <div>
                       <span className="text-3xl font-black text-slate-900">
-                        {course.localPrice
-                          ? `LKR ${course.localPrice.toLocaleString()}`
-                          : `USD ${course.foreignPrice?.toLocaleString()}`}
+                        {toPriceNumber(course.localPrice) !== null
+                          ? `LKR ${toPriceNumber(course.localPrice)?.toLocaleString()}`
+                          : `USD ${toPriceNumber(course.foreignPrice)?.toLocaleString()}`}
                       </span>
-                      {course.localPrice && course.foreignPrice && (
+                      {toPriceNumber(course.localPrice) !== null && toPriceNumber(course.foreignPrice) !== null && (
                         <p className="mt-0.5 text-sm text-slate-400">
-                          USD {course.foreignPrice.toLocaleString()} for international students
+                          USD {toPriceNumber(course.foreignPrice)?.toLocaleString()} for international students
                         </p>
                       )}
                     </div>

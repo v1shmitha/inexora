@@ -34,6 +34,7 @@ import {
 import { useRouter } from "next/navigation";
 import { createClient } from "~/lib/supabase/client";
 import { api } from "~/trpc/react";
+import { toPriceNumber } from "~/lib/pricing";
 import SetupIncompleteBanner from "./SetupIncompleteBanner";
 import ApprovalStatusBanner from "./ApprovalStatusBanner";
 
@@ -1371,14 +1372,14 @@ export default function LecturerDashboard() {
                                         {course.code}
                                       </span>
                                     )}
-                                    {course.localPrice && (
+                                    {toPriceNumber(course.localPrice) !== null && (
                                       <span>
-                                        LKR {course.localPrice.toLocaleString()}
+                                        LKR {toPriceNumber(course.localPrice)?.toLocaleString()}
                                       </span>
                                     )}
-                                    {course.foreignPrice && (
+                                    {toPriceNumber(course.foreignPrice) !== null && (
                                       <span>
-                                        USD {course.foreignPrice.toLocaleString()}
+                                        USD {toPriceNumber(course.foreignPrice)?.toLocaleString()}
                                       </span>
                                     )}
                                   </div>

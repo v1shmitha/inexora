@@ -7,7 +7,7 @@ import {
   Users, ChevronRight, Loader2, SlidersHorizontal, X,
 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { isFreePricing } from "~/lib/pricing";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 export default function PublicCoursesPage() {
   const router = useRouter();
@@ -369,9 +369,9 @@ export default function PublicCoursesPage() {
                           <span style={{ color: "#22C55E" }}>Free</span>
                         ) : (
                           <>
-                            {course.localPrice
-                              ? `LKR ${Number(course.localPrice).toLocaleString()}`
-                              : `USD ${Number(course.foreignPrice).toLocaleString()}`}
+                            {toPriceNumber(course.localPrice) !== null
+                              ? `LKR ${toPriceNumber(course.localPrice)?.toLocaleString()}`
+                              : `USD ${toPriceNumber(course.foreignPrice)?.toLocaleString()}`}
                           </>
                         )}
                       </p>

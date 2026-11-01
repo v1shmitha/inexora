@@ -8,7 +8,7 @@ import {
   Trash2, ArrowRight,
 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { isFreePricing } from "~/lib/pricing";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -278,20 +278,20 @@ export default function CoursesPage() {
 
                   {/* Pricing */}
                   <div className="mx-5 mb-3 flex flex-wrap gap-2">
-                    {course.localPrice ? (
+                    {toPriceNumber(course.localPrice) !== null ? (
                       <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
                         <DollarSign className="h-3 w-3" />
-                        LKR {Number(course.localPrice).toLocaleString()}
+                        LKR {toPriceNumber(course.localPrice)?.toLocaleString()}
                       </span>
                     ) : isFreePricing(course.localPrice, course.foreignPrice) ? (
                       <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                         Free
                       </span>
                     ) : null}
-                    {course.foreignPrice && (
+                    {toPriceNumber(course.foreignPrice) !== null && (
                       <span className="flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
                         <Globe className="h-3 w-3" />
-                        USD {Number(course.foreignPrice).toLocaleString()}
+                        USD {toPriceNumber(course.foreignPrice)?.toLocaleString()}
                       </span>
                     )}
                   </div>

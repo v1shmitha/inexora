@@ -7,7 +7,7 @@ import {
   Clock, Globe, Building2, ChevronRight, Loader2, X,
 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { isFreePricing } from "~/lib/pricing";
+import { isFreePricing, toPriceNumber } from "~/lib/pricing";
 
 const FIELD_LABELS: Record<string, string> = {
   INFORMATION_TECHNOLOGY: "IT",
@@ -477,9 +477,9 @@ export default function PublicProgramsPage() {
                       {/* Price */}
                       {!isFreePricing(program.localPrice, program.foreignPrice) && (
                         <p className="font-display mb-4 text-sm font-bold" style={{ color: "#F5F5F0" }}>
-                          {program.localPrice
-                            ? `LKR ${Number(program.localPrice).toLocaleString()}`
-                            : `USD ${Number(program.foreignPrice).toLocaleString()}`}
+                          {toPriceNumber(program.localPrice) !== null
+                            ? `LKR ${toPriceNumber(program.localPrice)?.toLocaleString()}`
+                            : `USD ${toPriceNumber(program.foreignPrice)?.toLocaleString()}`}
                           <span className="ml-1 text-xs font-normal" style={{ color: "rgba(136,153,187,0.45)" }}>/ program</span>
                         </p>
                       )}
