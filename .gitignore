@@ -50,3 +50,6 @@ yarn-error.log*
 # Local-only files
 paths.txt
 .claude/settings.local.json
+
+# local backup of .env (contains secrets)
+.env.backup
