@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight } from "lucide-react";
+import type { Role } from "@prisma/client";
 
 interface Props {
-  role: "STUDENT" | "LECTURER" | "INSTITUTION_ADMIN" | "EMPLOYER";
+  role: Extract<Role, "STUDENT" | "LECTURER" | "EMPLOYER">;
 }
 
 const roleConfig = {
@@ -21,13 +22,6 @@ const roleConfig = {
     iconColor: "text-violet-500",
     buttonColor: "bg-violet-600 hover:bg-violet-700",
     textColor: "text-violet-800",
-  },
-  INSTITUTION_ADMIN: {
-    message: "Register your institution to start listing programs and managing enrollments.",
-    color: "border-emerald-200 bg-emerald-50",
-    iconColor: "text-emerald-500",
-    buttonColor: "bg-emerald-600 hover:bg-emerald-700",
-    textColor: "text-emerald-800",
   },
   EMPLOYER: {
     message: "Complete your company profile to post jobs and find qualified candidates.",
