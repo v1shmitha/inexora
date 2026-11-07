@@ -163,7 +163,6 @@ export default function EmployerProfileSetup() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId: user.id,
         companyName,
         industry: industry || null,
         companySize: companySize || null,
