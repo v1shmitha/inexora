@@ -2,15 +2,15 @@
 
 import { Clock, CheckCircle, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { Role } from "@prisma/client";
 
 interface Props {
   status: "PENDING" | "APPROVED" | "REJECTED";
-  role: "LECTURER" | "INSTITUTION_ADMIN" | "EMPLOYER";
+  role: Extract<Role, "LECTURER" | "EMPLOYER">;
 }
 
-const roleLabels = {
+const roleLabels: Record<Props["role"], string> = {
   LECTURER: "Lecturer",
-  INSTITUTION_ADMIN: "Institution",
   EMPLOYER: "Employer",
 };
 
