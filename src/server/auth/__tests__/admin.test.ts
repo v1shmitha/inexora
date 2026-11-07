@@ -89,6 +89,20 @@ describe("requireProfileRole", () => {
     expect("response" in res && res.response.status).toBe(403);
   });
 
+  it("fails closed with a JSON 500 when the session lookup throws", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.getUser.mockRejectedValue(new Error("outage detail"));
+    const res = await requireProfileRole("LECTURER");
+    expect("response" in res).toBe(true);
+    if ("response" in res) {
+      expect(res.response.status).toBe(500);
+      const text = await res.response.text();
+      expect(text).toContain("Failed to save profile");
+      expect(text).not.toContain("outage detail");
+    }
+    spy.mockRestore();
+  });
+
   it("returns the profile on a role match", async () => {
     const p = { id: "u1", role: "LECTURER", isActive: true };
     signedInAs(p);

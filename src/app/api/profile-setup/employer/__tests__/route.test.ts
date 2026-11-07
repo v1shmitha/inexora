@@ -66,10 +66,11 @@ beforeEach(() => {
   mocks.select.mockReturnValue({ eq: mocks.selectEq });
   mocks.upsert.mockResolvedValue({ error: null });
   mocks.createAdminClient.mockReturnValue({
-    from: (table: string) =>
-      table === "Profile"
-        ? { update: mocks.profileUpdate }
-        : { select: mocks.select, upsert: mocks.upsert },
+    from: (table: string) => {
+      if (table === "Profile") return { update: mocks.profileUpdate };
+      if (table === "Employer") return { select: mocks.select, upsert: mocks.upsert };
+      throw new Error(`unexpected table ${table}`);
+    },
   });
   session("EMPLOYER");
 });
@@ -79,6 +80,14 @@ describe("POST /api/profile-setup/employer", () => {
     mocks.getUser.mockResolvedValue({ data: { user: null } });
     const res = await call(KEYS);
     expect(res.status).toBe(401);
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns a JSON 500 and builds no admin client when the session lookup throws", async () => {
+    mocks.getUser.mockRejectedValue(new Error("outage detail"));
+    const res = await call(KEYS);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Failed to save profile" });
     expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 

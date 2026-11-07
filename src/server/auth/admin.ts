@@ -34,7 +34,15 @@ export async function requireAdmin(): Promise<{ id: string }> {
 export async function requireProfileRole(
   role: Role,
 ): Promise<{ profile: CurrentProfile } | { response: NextResponse }> {
-  const profile = await getCurrentProfile();
+  let profile: CurrentProfile | null;
+  try {
+    profile = await getCurrentProfile();
+  } catch (err) {
+    console.error("requireProfileRole failed:", err);
+    return {
+      response: NextResponse.json({ error: "Failed to save profile" }, { status: 500 }),
+    };
+  }
   if (!profile) {
     return {
       response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
