@@ -9,22 +9,19 @@ import PrivacySection from "./PrivacySection";
 import DeleteAccountSection from "./DeleteAccountSection";
 import StudentSettingsSection from "./StudentSettingsSection";
 import LecturerSettingsSection from "./LecturerSettingsSection";
-import ProviderSettingsSection from "./ProviderSettingsSection";
 import EmployerSettingsSection from "./EmployerSettingsSection";
+import type { Role } from "@prisma/client";
 
-type Role = "STUDENT" | "LECTURER" | "INSTITUTION_ADMIN" | "EMPLOYER" | "ADMIN";
-
-const roleLabels: Record<string, string> = {
+// INSTITUTION users never reach /settings: middleware redirects them to /institution.
+const roleLabels: Partial<Record<Role, string>> = {
   STUDENT: "Academic Info",
   LECTURER: "Expertise",
-  INSTITUTION_ADMIN: "Institution",
   EMPLOYER: "Company",
 };
 
-const roleColors: Record<string, string> = {
+const roleColors: Partial<Record<Role, string>> = {
   STUDENT: "bg-blue-600",
   LECTURER: "bg-violet-600",
-  INSTITUTION_ADMIN: "bg-emerald-600",
   EMPLOYER: "bg-orange-500",
   ADMIN: "bg-red-600",
 };
@@ -55,7 +52,6 @@ export default function SettingsShell({ role }: { role: Role }) {
         switch (role) {
           case "STUDENT": return <StudentSettingsSection />;
           case "LECTURER": return <LecturerSettingsSection />;
-          case "INSTITUTION_ADMIN": return <ProviderSettingsSection />;
           case "EMPLOYER": return <EmployerSettingsSection />;
           default: return null;
         }
