@@ -264,6 +264,53 @@ CREATE TRIGGER guard_program_privileged_columns
   BEFORE INSERT OR UPDATE ON "Program"
   FOR EACH ROW EXECUTE FUNCTION public.guard_program_privileged_columns();
 
+-- INX-150: Enrollment and AssessmentSubmission are written only by the server
+-- (Prisma / service_role). The student INSERT policies are dropped below; these
+-- triggers are belt-and-braces in case a policy is re-added or the live DB
+-- drifts. Strict: no admin bypass, any INSERT/UPDATE by authenticated/anon fails.
+
+CREATE OR REPLACE FUNCTION public.guard_enrollment_student_writes()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF current_user NOT IN ('authenticated', 'anon') THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'Enrollment rows can only be written by the server'
+    USING ERRCODE = '42501';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_enrollment_student_writes ON "Enrollment";
+CREATE TRIGGER guard_enrollment_student_writes
+  BEFORE INSERT OR UPDATE ON "Enrollment"
+  FOR EACH ROW EXECUTE FUNCTION public.guard_enrollment_student_writes();
+
+CREATE OR REPLACE FUNCTION public.guard_assessment_submission_student_writes()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF current_user NOT IN ('authenticated', 'anon') THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'AssessmentSubmission rows can only be written by the server'
+    USING ERRCODE = '42501';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_assessment_submission_student_writes ON "AssessmentSubmission";
+CREATE TRIGGER guard_assessment_submission_student_writes
+  BEFORE INSERT OR UPDATE ON "AssessmentSubmission"
+  FOR EACH ROW EXECUTE FUNCTION public.guard_assessment_submission_student_writes();
+
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3. ROW LEVEL SECURITY
@@ -780,13 +827,11 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── Enrollment (gaps: INSERT, UPDATE, admin bypass) ──────────────────────────
 
-DO $$ BEGIN
-  CREATE POLICY "Students can insert own enrollment" ON "Enrollment"
-    FOR INSERT TO authenticated
-    WITH CHECK (
-      auth.uid()::text = (SELECT "profileId" FROM "Student" WHERE id = "studentId")
-    );
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Removed (INX-150): this only checked studentId, so a student could insert
+-- any status for any program, including paid ones, directly via the Supabase
+-- API. Enrollment rows are created only by the tRPC enrollment.enrollInProgram
+-- procedure, via Prisma.
+DROP POLICY IF EXISTS "Students can insert own enrollment" ON "Enrollment";
 
 DO $$ BEGIN
   CREATE POLICY "Institution can read own program enrollments" ON "Enrollment"
@@ -1201,13 +1246,11 @@ DO $$ BEGIN
     );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-DO $$ BEGIN
-  CREATE POLICY "Students can insert own submissions" ON "AssessmentSubmission"
-    FOR INSERT TO authenticated
-    WITH CHECK (
-      "studentId" = (SELECT id FROM "Student" WHERE "profileId" = auth.uid()::text)
-    );
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Removed (INX-150): this only checked studentId, so a student could insert a
+-- submission with any status or grade fields directly via the Supabase API.
+-- AssessmentSubmission rows are created only by the studentCourse.submitAssessment
+-- tRPC procedure, via Prisma.
+DROP POLICY IF EXISTS "Students can insert own submissions" ON "AssessmentSubmission";
 
 DO $$ BEGIN
   CREATE POLICY "Institution can read submissions for own courses" ON "AssessmentSubmission"
