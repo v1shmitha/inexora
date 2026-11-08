@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
+import { assertCourseAccess } from "~/server/api/courseAccess";
 
 const RESOURCE_TYPES = [
   "PDF",
@@ -10,25 +11,6 @@ const RESOURCE_TYPES = [
   "PRESENTATION",
   "EXTERNAL_LINK",
 ] as const;
-
-async function assertCourseAccess(
-  db: any,
-  courseId: string,
-  lecturerId: string,
-) {
-  const assignment = await db.courseLecturer.findFirst({
-    where: { courseId, lecturerId },
-  });
-  const owned = await db.course.findFirst({
-    where: { id: courseId, createdById: lecturerId },
-  });
-  if (!assignment && !owned) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You don't have access to this course",
-    });
-  }
-}
 
 export const courseResourceRouter = createTRPCRouter({
   // ── SECTIONS ──────────────────────────────────────────────────────────────

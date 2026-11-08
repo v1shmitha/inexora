@@ -89,6 +89,7 @@ export default function AssessmentsPage() {
   const [gradeMarks, setGradeMarks] = useState("");
   const [gradeFeedback, setGradeFeedback] = useState("");
   const [gradeStatus, setGradeStatus] = useState<"GRADED" | "RESUBMIT_REQUIRED">("GRADED");
+  const [gradeError, setGradeError] = useState<string | null>(null);
 
   // ── tRPC ──────────────────────────────────────────────────────────────────
 
@@ -122,7 +123,9 @@ export default function AssessmentsPage() {
       setGradeModal(null);
       setGradeMarks("");
       setGradeFeedback("");
+      setGradeError(null);
     },
+    onError: (e) => setGradeError(e.message),
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -420,6 +423,7 @@ export default function AssessmentsPage() {
                           setGradeMarks("");
                           setGradeFeedback("");
                           setGradeStatus("GRADED");
+                          setGradeError(null);
                         }}
                         className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700"
                       >
@@ -588,6 +592,8 @@ export default function AssessmentsPage() {
                   </button>
                 ))}
               </div>
+
+              {gradeError && <p className="text-sm text-red-600">{gradeError}</p>}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => setGradeModal(null)}

@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
+import { assertCourseAccess } from "~/server/api/courseAccess";
 
 export const studentRouter = createTRPCRouter({
 
@@ -108,6 +110,15 @@ export const studentRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { courseEnrollmentId, ...data } = input;
+      const enrollment = await ctx.db.courseEnrollment.findUnique({
+        where: { id: courseEnrollmentId },
+        select: { courseId: true },
+      });
+      if (!enrollment) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Enrollment not found" });
+      }
+      await assertCourseAccess(ctx.db, enrollment.courseId, ctx.lecturer.id);
+
       return ctx.db.courseEnrollment.update({
         where: { id: courseEnrollmentId },
         data,
