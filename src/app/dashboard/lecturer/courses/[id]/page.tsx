@@ -144,11 +144,13 @@ export default function CourseDetailPage() {
 
   const gradeSubmission = api.assessment.gradeSubmission.useMutation({
     onSuccess: () => { void utils.assessment.getByCourse.invalidate(); setGradeModal(null); setGradeMarks(""); setGradeFeedback(""); setGradeError(null); },
+    onMutate: () => setGradeError(null),
     onError: (e) => setGradeError(e.message),
   });
 
   const updateGrade = api.student.updateGrade.useMutation({
     onSuccess: () => { void utils.student.getStudentsByCourse.invalidate(); setStudentStatusError(null); },
+    onMutate: () => setStudentStatusError(null),
     onError: (e) => setStudentStatusError(e.message),
   });
 

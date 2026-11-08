@@ -125,6 +125,7 @@ export default function AssessmentsPage() {
       setGradeFeedback("");
       setGradeError(null);
     },
+    onMutate: () => setGradeError(null),
     onError: (e) => setGradeError(e.message),
   });
 

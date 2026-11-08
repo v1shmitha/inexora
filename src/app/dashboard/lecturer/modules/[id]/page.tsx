@@ -269,6 +269,7 @@ export default function ModuleDetailPage() {
       setGradeFeedback("");
       setGradeError(null);
     },
+    onMutate: () => setGradeError(null),
     onError: (e) => setGradeError(e.message),
   });
 
@@ -277,6 +278,7 @@ export default function ModuleDetailPage() {
       void utils.student.getStudentsByCourse.invalidate();
       setStudentStatusError(null);
     },
+    onMutate: () => setStudentStatusError(null),
     onError: (e) => setStudentStatusError(e.message),
   });
 
