@@ -1,23 +1,58 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "~/lib/supabase/admin";
+import { requireProfileRole } from "~/server/auth/admin";
+
+const nullableStr = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .nullish()
+    .transform((v) => v ?? null);
+
+const lecturerSetupSchema = z.object({
+  phone: nullableStr(40),
+  city: nullableStr(100),
+  title: nullableStr(200),
+  specialization: z.array(z.string().max(100)).max(50).default([]),
+  qualifications: nullableStr(2000),
+  experienceYears: z
+    .number()
+    .int()
+    .min(0)
+    .max(80)
+    .nullish()
+    .transform((v) => v ?? null),
+  bio: nullableStr(5000),
+  linkedinUrl: nullableStr(500),
+  institutionId: nullableStr(100),
+  isVisiting: z.boolean().default(false),
+  hourlyRate: z
+    .number()
+    .min(0)
+    .max(1_000_000)
+    .nullish()
+    .transform((v) => v ?? null),
+});
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json() as {
-      userId: string;
-      phone: string | null;
-      city: string | null;
-      title: string | null;
-      specialization: string[];
-      qualifications: string | null;
-      experienceYears: number | null;
-      bio: string | null;
-      linkedinUrl: string | null;
-      institutionId: string | null;
-      isVisiting: boolean;
-      hourlyRate: number | null;
-    };
+  const auth = await requireProfileRole("LECTURER");
+  if ("response" in auth) return auth.response;
+  const userId = auth.profile.id;
 
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const parsed = lecturerSetupSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const body = parsed.data;
+
+  try {
     const supabase = createAdminClient();
 
     // Update profile contact info — do NOT set isVerified
@@ -27,7 +62,7 @@ export async function POST(request: Request) {
         phone: body.phone,
         city: body.city,
       })
-      .eq("id", body.userId);
+      .eq("id", userId);
 
     if (profileError) throw new Error(profileError.message);
 
@@ -37,7 +72,7 @@ export async function POST(request: Request) {
     const { data: existingRaw } = await supabase
       .from("Lecturer")
       .select("id, approvalStatus, title, specialization, qualifications, experienceYears, institutionId")
-      .eq("profileId", body.userId)
+      .eq("profileId", userId)
       .maybeSingle();
 
     const existing = existingRaw as {
@@ -73,7 +108,7 @@ export async function POST(request: Request) {
       .upsert(
         {
           id: existing?.id ?? crypto.randomUUID(),
-          profileId: body.userId,
+          profileId: userId,
           title: body.title,
           specialization: body.specialization,
           qualifications: body.qualifications,
@@ -93,9 +128,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    console.error("Lecturer profile setup failed:", err);
+    return NextResponse.json({ error: "Failed to save profile" }, { status: 500 });
   }
 }

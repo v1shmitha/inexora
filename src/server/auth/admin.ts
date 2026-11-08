@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { createClient } from "~/lib/supabase/server";
 import { db } from "~/server/db";
 
@@ -28,4 +29,29 @@ export async function requireAdmin(): Promise<{ id: string }> {
     throw new Error("Forbidden");
   }
   return { id: profile.id };
+}
+
+export async function requireProfileRole(
+  role: Role,
+): Promise<{ profile: CurrentProfile } | { response: NextResponse }> {
+  let profile: CurrentProfile | null;
+  try {
+    profile = await getCurrentProfile();
+  } catch (err) {
+    console.error("requireProfileRole failed:", err);
+    return {
+      response: NextResponse.json({ error: "Failed to save profile" }, { status: 500 }),
+    };
+  }
+  if (!profile) {
+    return {
+      response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
+    };
+  }
+  if (profile.role !== role || profile.isActive === false) {
+    return {
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+  return { profile };
 }

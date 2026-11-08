@@ -12,7 +12,7 @@ vi.mock("~/server/db", () => ({
   db: { profile: { findUnique: mocks.findUnique } },
 }));
 
-import { getCurrentProfile, requireAdmin } from "../admin";
+import { getCurrentProfile, requireAdmin, requireProfileRole } from "../admin";
 
 function signedInAs(
   profile: { id: string; role: string; isActive: boolean } | null,
@@ -58,5 +58,54 @@ describe("requireAdmin", () => {
   it("rejects a suspended admin with Forbidden", async () => {
     signedInAs({ id: "u1", role: "ADMIN", isActive: false });
     await expect(requireAdmin()).rejects.toThrow("Forbidden");
+  });
+});
+
+describe("requireProfileRole", () => {
+  it("returns 401 when there is no session", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    const res = await requireProfileRole("LECTURER");
+    expect("response" in res && res.response.status).toBe(401);
+  });
+
+  it("returns 401 when there is a session but no profile", async () => {
+    signedInAs(null);
+    const res = await requireProfileRole("LECTURER");
+    expect("response" in res && res.response.status).toBe(401);
+  });
+
+  it.each(["STUDENT", "EMPLOYER", "INSTITUTION", "ADMIN"])(
+    "returns 403 for role %s",
+    async (role) => {
+      signedInAs({ id: "u1", role, isActive: true });
+      const res = await requireProfileRole("LECTURER");
+      expect("response" in res && res.response.status).toBe(403);
+    },
+  );
+
+  it("returns 403 for an inactive profile", async () => {
+    signedInAs({ id: "u1", role: "LECTURER", isActive: false });
+    const res = await requireProfileRole("LECTURER");
+    expect("response" in res && res.response.status).toBe(403);
+  });
+
+  it("fails closed with a JSON 500 when the session lookup throws", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.getUser.mockRejectedValue(new Error("outage detail"));
+    const res = await requireProfileRole("LECTURER");
+    expect("response" in res).toBe(true);
+    if ("response" in res) {
+      expect(res.response.status).toBe(500);
+      const text = await res.response.text();
+      expect(text).toContain("Failed to save profile");
+      expect(text).not.toContain("outage detail");
+    }
+    spy.mockRestore();
+  });
+
+  it("returns the profile on a role match", async () => {
+    const p = { id: "u1", role: "LECTURER", isActive: true };
+    signedInAs(p);
+    await expect(requireProfileRole("LECTURER")).resolves.toEqual({ profile: p });
   });
 });

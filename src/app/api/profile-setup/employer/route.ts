@@ -1,19 +1,43 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "~/lib/supabase/admin";
+import { requireProfileRole } from "~/server/auth/admin";
+
+const nullableStr = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .nullish()
+    .transform((v) => v ?? null);
+
+const employerSetupSchema = z.object({
+  companyName: z.string().max(200),
+  industry: nullableStr(100),
+  companySize: nullableStr(50),
+  website: nullableStr(500),
+  description: nullableStr(5000),
+  phone: nullableStr(40),
+  city: nullableStr(100),
+});
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json() as {
-      userId: string;
-      companyName: string;
-      industry: string | null;
-      companySize: string | null;
-      website: string | null;
-      description: string | null;
-      phone: string | null;
-      city: string | null;
-    };
+  const auth = await requireProfileRole("EMPLOYER");
+  if ("response" in auth) return auth.response;
+  const userId = auth.profile.id;
 
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const parsed = employerSetupSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const body = parsed.data;
+
+  try {
     const supabase = createAdminClient();
 
     // Update profile with contact info — do NOT set isVerified
@@ -23,7 +47,7 @@ export async function POST(request: Request) {
         phone: body.phone,
         city: body.city,
       })
-      .eq("id", body.userId);
+      .eq("id", userId);
 
     if (profileError) throw new Error(profileError.message);
 
@@ -33,7 +57,7 @@ export async function POST(request: Request) {
     const { data: existingRaw } = await supabase
       .from("Employer")
       .select("id, approvalStatus, isVerified, companyName, industry, companySize")
-      .eq("profileId", body.userId)
+      .eq("profileId", userId)
       .maybeSingle();
 
     const existing = existingRaw as {
@@ -65,7 +89,7 @@ export async function POST(request: Request) {
       .upsert(
         {
           id: existing?.id ?? crypto.randomUUID(),
-          profileId: body.userId,
+          profileId: userId,
           companyName: body.companyName,
           industry: body.industry,
           companySize: body.companySize,
@@ -81,9 +105,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    console.error("Employer profile setup failed:", err);
+    return NextResponse.json({ error: "Failed to save profile" }, { status: 500 });
   }
 }
