@@ -160,6 +160,10 @@ export default function ModuleDetailPage() {
   const [gradeStatus, setGradeStatus] = useState<
     "GRADED" | "RESUBMIT_REQUIRED"
   >("GRADED");
+  const [gradeError, setGradeError] = useState<string | null>(null);
+  const [studentStatusError, setStudentStatusError] = useState<string | null>(
+    null,
+  );
 
   // ── tRPC Queries ──────────────────────────────────────────────────────────
 
@@ -263,11 +267,19 @@ export default function ModuleDetailPage() {
       setGradeModal(null);
       setGradeMarks("");
       setGradeFeedback("");
+      setGradeError(null);
     },
+    onMutate: () => setGradeError(null),
+    onError: (e) => setGradeError(e.message),
   });
 
   const updateGrade = api.student.updateGrade.useMutation({
-    onSuccess: () => void utils.student.getStudentsByCourse.invalidate(),
+    onSuccess: () => {
+      void utils.student.getStudentsByCourse.invalidate();
+      setStudentStatusError(null);
+    },
+    onMutate: () => setStudentStatusError(null),
+    onError: (e) => setStudentStatusError(e.message),
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -876,6 +888,7 @@ export default function ModuleDetailPage() {
                                         setGradeMarks("");
                                         setGradeFeedback("");
                                         setGradeStatus("GRADED");
+                                        setGradeError(null);
                                       }}
                                       className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700"
                                     >
@@ -920,6 +933,11 @@ export default function ModuleDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {studentStatusError && (
+                      <p className="text-sm text-red-600">
+                        {studentStatusError}
+                      </p>
+                    )}
                     {students.map((e) => (
                       <div
                         key={e.id}
@@ -1272,6 +1290,9 @@ export default function ModuleDetailPage() {
                   </button>
                 ))}
               </div>
+              {gradeError && (
+                <p className="text-sm text-red-600">{gradeError}</p>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   onClick={() => setGradeModal(null)}

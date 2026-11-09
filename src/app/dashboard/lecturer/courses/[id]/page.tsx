@@ -92,6 +92,8 @@ export default function CourseDetailPage() {
   const [gradeMarks, setGradeMarks] = useState("");
   const [gradeFeedback, setGradeFeedback] = useState("");
   const [gradeStatus, setGradeStatus] = useState<"GRADED" | "RESUBMIT_REQUIRED">("GRADED");
+  const [gradeError, setGradeError] = useState<string | null>(null);
+  const [studentStatusError, setStudentStatusError] = useState<string | null>(null);
 
   // ── tRPC ──────────────────────────────────────────────────────────────────
 
@@ -141,11 +143,15 @@ export default function CourseDetailPage() {
   });
 
   const gradeSubmission = api.assessment.gradeSubmission.useMutation({
-    onSuccess: () => { void utils.assessment.getByCourse.invalidate(); setGradeModal(null); setGradeMarks(""); setGradeFeedback(""); },
+    onSuccess: () => { void utils.assessment.getByCourse.invalidate(); setGradeModal(null); setGradeMarks(""); setGradeFeedback(""); setGradeError(null); },
+    onMutate: () => setGradeError(null),
+    onError: (e) => setGradeError(e.message),
   });
 
   const updateGrade = api.student.updateGrade.useMutation({
-    onSuccess: () => void utils.student.getStudentsByCourse.invalidate(),
+    onSuccess: () => { void utils.student.getStudentsByCourse.invalidate(); setStudentStatusError(null); },
+    onMutate: () => setStudentStatusError(null),
+    onError: (e) => setStudentStatusError(e.message),
   });
 
   // ── File upload ───────────────────────────────────────────────────────────
@@ -503,7 +509,7 @@ export default function CourseDetailPage() {
                                 </div>
                               </div>
                               <button
-                                onClick={() => { setGradeModal({ submissionId: sub.id, studentName: sub.student?.profile?.fullName ?? "Student", totalMarks: a.totalMarks ?? null }); setGradeMarks(""); setGradeFeedback(""); setGradeStatus("GRADED"); }}
+                                onClick={() => { setGradeModal({ submissionId: sub.id, studentName: sub.student?.profile?.fullName ?? "Student", totalMarks: a.totalMarks ?? null }); setGradeMarks(""); setGradeFeedback(""); setGradeStatus("GRADED"); setGradeError(null); }}
                                 className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700"
                               >
                                 <CheckCircle className="h-3 w-3" /> Grade
@@ -540,6 +546,7 @@ export default function CourseDetailPage() {
               </div>
             ) : (
               <div className="space-y-3">
+                {studentStatusError && <p className="text-sm text-red-600">{studentStatusError}</p>}
                 {students.map((e) => (
                   <div key={e.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
                     <div className="flex items-center gap-4">
@@ -694,6 +701,7 @@ export default function CourseDetailPage() {
                   </button>
                 ))}
               </div>
+              {gradeError && <p className="text-sm text-red-600">{gradeError}</p>}
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => setGradeModal(null)} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, lecturerProcedure } from "~/server/api/trpc";
+import { assertCourseAccess } from "~/server/api/courseAccess";
 
 export const assessmentRouter = createTRPCRouter({
 
@@ -145,6 +146,22 @@ export const assessmentRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { submissionId, ...data } = input;
+      const sub = await ctx.db.assessmentSubmission.findUnique({
+        where: { id: submissionId },
+        select: { assessment: { select: { courseId: true, totalMarks: true } } },
+      });
+      if (!sub) throw new TRPCError({ code: "NOT_FOUND", message: "Submission not found" });
+
+      await assertCourseAccess(ctx.db, sub.assessment.courseId, ctx.lecturer.id);
+
+      const totalMarks = sub.assessment.totalMarks;
+      if (totalMarks != null && data.marksObtained > totalMarks) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Marks cannot exceed the total marks (${totalMarks})`,
+        });
+      }
+
       return ctx.db.assessmentSubmission.update({
         where: { id: submissionId },
         data: {
